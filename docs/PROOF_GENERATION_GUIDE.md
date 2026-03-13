@@ -19,8 +19,8 @@ srs = generate_test_srs(max_degree=2048)
 
 ```python
 # Define your computation (witness data)
-witness = [1, 2, 3, 4]
 num_constraints = 500
+witness = [1] * (num_constraints + 1)
 
 # Generate proof
 proof = prove_test(
@@ -29,6 +29,9 @@ proof = prove_test(
     srs=srs
 )
 ```
+
+**Important requirement:** For test circuits, witness length must be at least
+`num_constraints + 1` (equivalently `witness_len > num_constraints`).
 
 ### 3. Verify the Proof
 
@@ -254,7 +257,7 @@ srs = generate_test_srs(max_degree=1_000_000)
 # Generate proof for any constraint count
 proof = prove_test(
     num_constraints=500_000,
-    witness=[1, 2, 3, 4],
+    witness=[1] * 500_001,
     srs=srs
 )
 

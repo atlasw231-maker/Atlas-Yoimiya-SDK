@@ -79,12 +79,13 @@ yoimiya_quick_test();
 
 // Test simple proof
 YoimiyaTestResult result = {0};
-uint8_t witness[] = {1, 2, 3, 4};
-yoimiya_test_simple_proof(500, witness, 4, srs, &result);
+uint8_t witness[501];
+for (int i = 0; i < 501; i++) witness[i] = 1;
+yoimiya_test_simple_proof(500, witness, 501, srs, &result);
 
 // Test batch aggregation
 YoimiyaTestResult batch_result = {0};
-yoimiya_test_batch_aggregation(10, 100, witness, 4, srs, &batch_result);
+yoimiya_test_batch_aggregation(10, 100, witness, 501, srs, &batch_result);
 
 // Print results
 yoimiya_print_result(&result);

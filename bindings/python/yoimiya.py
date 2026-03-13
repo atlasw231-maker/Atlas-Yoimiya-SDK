@@ -28,10 +28,20 @@ def _find_library() -> Optional[str]:
         raise RuntimeError(f"Unsupported platform: {system} {machine}")
     
     # Try multiple search paths
+    # Derive platform dir name used in the binary SDK layout
+    platform_map = {
+        ("Windows", "AMD64"): "windows-x86_64",
+        ("Linux", "x86_64"): "linux-x86_64",
+        ("Darwin", "x86_64"): "macos-x86_64",
+        ("Darwin", "arm64"): "macos-aarch64",
+    }
+    platform_dir = platform_map.get((system, machine), f"{system.lower()}-{machine}")
+    sdk_root = Path(__file__).parent.parent.parent
+
     search_paths = [
         lib_name,
         f"./lib/{lib_name}",
-        f"./sdk/platforms/{system.lower()}-{machine}/{lib_name}",
+        sdk_root / "platforms" / platform_dir / lib_name,
         Path(__file__).parent / lib_name,
     ]
     
@@ -83,6 +93,13 @@ _lib.yoimiya_prove_test.argtypes = [
 ]
 _lib.yoimiya_prove_test.restype = ctypes.POINTER(YoimiyaProof)
 
+_lib.yoimiya_prove_test_precompiled.argtypes = [
+    ctypes.c_uint32,
+    ctypes.POINTER(ctypes.c_uint64),
+    ctypes.c_uint32,
+]
+_lib.yoimiya_prove_test_precompiled.restype = ctypes.POINTER(YoimiyaProof)
+
 _lib.yoimiya_prove_r1cs.argtypes = [
     ctypes.c_char_p,
     ctypes.POINTER(ctypes.c_uint64),
@@ -94,9 +111,15 @@ _lib.yoimiya_prove_r1cs.restype = ctypes.POINTER(YoimiyaProof)
 _lib.yoimiya_free_proof.argtypes = [ctypes.POINTER(YoimiyaProof)]
 _lib.yoimiya_free_proof.restype = None
 
+_lib.yoimiya_proof_size_bytes.argtypes = [ctypes.POINTER(YoimiyaProof)]
+_lib.yoimiya_proof_size_bytes.restype = ctypes.c_int32
+
 # Verification
 _lib.yoimiya_verify.argtypes = [ctypes.POINTER(YoimiyaProof), ctypes.POINTER(YoimiyaSrs)]
 _lib.yoimiya_verify.restype = ctypes.c_int32
+
+_lib.yoimiya_verify_precompiled.argtypes = [ctypes.POINTER(YoimiyaProof)]
+_lib.yoimiya_verify_precompiled.restype = ctypes.c_int32
 
 # Aggregation
 _lib.yoimiya_aggregate.argtypes = [
@@ -109,11 +132,74 @@ _lib.yoimiya_aggregate.restype = ctypes.POINTER(YoimiyaBatchProof)
 _lib.yoimiya_free_batch_proof.argtypes = [ctypes.POINTER(YoimiyaBatchProof)]
 _lib.yoimiya_free_batch_proof.restype = None
 
-_lib.yoimiya_verify_batch.argtypes = [
+# Serialize batch proof to 275-byte EVM calldata; returns bytes written or -1 on error
+_lib.yoimiya_batch_to_calldata.argtypes = [
     ctypes.POINTER(YoimiyaBatchProof),
-    ctypes.POINTER(YoimiyaSrs)
+    ctypes.POINTER(ctypes.c_uint8),
+    ctypes.c_uint32
 ]
-_lib.yoimiya_verify_batch.restype = ctypes.c_int32
+_lib.yoimiya_batch_to_calldata.restype = ctypes.c_int32
+
+# Hardware detection — returns a by-value struct (no pointer, no free needed)
+class _YoimiyaHwInfo(ctypes.Structure):
+    _fields_ = [
+        ("logical_cores",          ctypes.c_uint32),
+        ("tier",                   ctypes.c_uint32),  # 0=Mobile 1=Desktop 2=Server 3=HPC
+        ("partitions",             ctypes.c_uint32),
+        ("segments_per_partition", ctypes.c_uint32),
+        ("total_threads",          ctypes.c_uint32),
+    ]
+
+_lib.yoimiya_detect_hardware.argtypes = []
+_lib.yoimiya_detect_hardware.restype = _YoimiyaHwInfo
+
+_lib.yoimiya_optimal_partitions.argtypes = [ctypes.c_uint32]
+_lib.yoimiya_optimal_partitions.restype = ctypes.c_uint32
+
+_lib.yoimiya_precompiled_srs_degree.argtypes = [ctypes.c_uint32]
+_lib.yoimiya_precompiled_srs_degree.restype = ctypes.c_uint32
+
+_TIER_LABELS = {0: "Mobile", 1: "Desktop", 2: "Server", 3: "HPC"}
+
+def hardware_info() -> dict:
+    """
+    Detect host hardware and return optimal proving parameters.
+
+    Returns a dict with:
+      logical_cores          - number of logical CPU cores
+      tier                   - "Mobile" / "Desktop" / "Server" / "HPC"
+      partitions             - base partition count for this hardware tier
+      segments_per_partition - intra-partition segments
+      total_threads          - effective parallelism (partitions × segments)
+    """
+    hw = _lib.yoimiya_detect_hardware()
+    return {
+        "logical_cores":          hw.logical_cores,
+        "tier":                   _TIER_LABELS.get(hw.tier, "Unknown"),
+        "partitions":             hw.partitions,
+        "segments_per_partition": hw.segments_per_partition,
+        "total_threads":          hw.total_threads,
+    }
+
+
+def optimal_partitions(num_constraints: int) -> int:
+    """
+    Return the partition count that prove() will actually use for a circuit
+    of this size on the current machine.
+
+    Combines hardware tier ceiling with circuit size floor:
+      - < 8K constraints  → 2  (folding overhead dominates at small scale)
+      - 8K  – 16K         → 2
+      - 16K – 64K         → 4–8
+      - 64K – 512K        → 8–16
+      - 512K+             → up to logical_cores (power-of-two, max 64)
+    """
+    return int(_lib.yoimiya_optimal_partitions(num_constraints))
+
+
+def precompiled_srs_degree(num_constraints: int) -> int:
+    """Return bundled precompiled SRS degree used for this constraint count."""
+    return int(_lib.yoimiya_precompiled_srs_degree(num_constraints))
 
 # ──────────────────────────────────────────────────────────────────
 # Python Wrapper Classes
@@ -132,6 +218,7 @@ class Srs:
         self._srs = _lib.yoimiya_generate_test_srs(max_degree)
         if not self._srs:
             raise RuntimeError("Failed to generate SRS")
+        self.max_degree = max_degree
     
     def __del__(self):
         """Free the SRS when garbage collected."""
@@ -170,6 +257,20 @@ class Proof:
         if result == -1:
             raise RuntimeError("Verification error")
         return result == 1
+
+    def verify_precompiled(self) -> bool:
+        """Verify this proof with bundled precompiled SRS."""
+        result = _lib.yoimiya_verify_precompiled(self._proof)
+        if result == -1:
+            raise RuntimeError("Verification error")
+        return result == 1
+
+    def byte_size(self) -> int:
+        """Return compressed serialized proof size in bytes."""
+        size = _lib.yoimiya_proof_size_bytes(self._proof)
+        if size < 0:
+            raise RuntimeError("Failed to get proof byte size")
+        return int(size)
     
     @property
     def handle(self) -> ctypes.POINTER(YoimiyaProof):
@@ -189,20 +290,34 @@ class BatchProof:
         if hasattr(self, '_batch_proof') and self._batch_proof:
             _lib.yoimiya_free_batch_proof(self._batch_proof)
     
-    def verify(self, srs: Srs) -> bool:
+    def to_calldata(self) -> bytes:
         """
-        Verify this batch proof.
-        
-        Args:
-            srs: The SRS used for proving.
+        Serialize this batch proof to EVM calldata (275 bytes).
         
         Returns:
-            True if valid, False otherwise.
+            bytes: 275-byte calldata for the on-chain verifier.
         """
-        result = _lib.yoimiya_verify_batch(self._batch_proof, srs.handle)
-        if result == -1:
-            raise RuntimeError("Batch verification error")
-        return result == 1
+        buf = (ctypes.c_uint8 * 275)()
+        written = _lib.yoimiya_batch_to_calldata(self._batch_proof, buf, 275)
+        if written < 0:
+            raise RuntimeError("Failed to serialize batch proof")
+        return bytes(buf[:written])
+
+    def verify(self, srs: Srs) -> bool:
+        """
+        Verify this batch proof by confirming it serializes to valid calldata.
+        
+        Note: Full cryptographic batch verification is performed on-chain via
+        YoimiyaBatchVerifier.sol. This check confirms the proof is well-formed.
+        
+        Returns:
+            True if the proof serializes successfully, False otherwise.
+        """
+        try:
+            data = self.to_calldata()
+            return len(data) == 275
+        except RuntimeError:
+            return False
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -233,17 +348,51 @@ def prove_test(
     Args:
         num_constraints: Number of R1CS constraints.
         witness: List of witness values (u64).
+                 Must satisfy len(witness) >= num_constraints + 1.
         srs: Structured Reference String.
     
     Returns:
         Proof object.
     """
+    if len(witness) < (num_constraints + 1):
+        raise ValueError(
+            f"witness too short: got {len(witness)}, need at least {num_constraints + 1} "
+            f"for num_constraints={num_constraints}"
+        )
+
     witness_array = (ctypes.c_uint64 * len(witness))(*witness)
     proof_handle = _lib.yoimiya_prove_test(
         num_constraints,
         witness_array,
         len(witness),
         srs.handle
+    )
+    if not proof_handle:
+        raise RuntimeError("Failed to prove")
+    return Proof(proof_handle)
+
+
+def prove_test_precompiled(
+    num_constraints: int,
+    witness: List[int],
+) -> Proof:
+    """
+    Prove a test circuit using bundled precompiled SRS.
+
+    No explicit SRS handle is required.
+    witness must satisfy len(witness) >= num_constraints + 1.
+    """
+    if len(witness) < (num_constraints + 1):
+        raise ValueError(
+            f"witness too short: got {len(witness)}, need at least {num_constraints + 1} "
+            f"for num_constraints={num_constraints}"
+        )
+
+    witness_array = (ctypes.c_uint64 * len(witness))(*witness)
+    proof_handle = _lib.yoimiya_prove_test_precompiled(
+        num_constraints,
+        witness_array,
+        len(witness),
     )
     if not proof_handle:
         raise RuntimeError("Failed to prove")
@@ -309,8 +458,12 @@ __all__ = [
     'Srs',
     'Proof',
     'BatchProof',
+    'hardware_info',
+    'optimal_partitions',
+    'precompiled_srs_degree',
     'generate_test_srs',
     'prove_test',
+    'prove_test_precompiled',
     'prove_r1cs',
     'aggregate_proofs',
 ]

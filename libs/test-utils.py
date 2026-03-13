@@ -31,13 +31,13 @@ class YoimiyaTester:
         
         Args:
             num_constraints: Number of circuit constraints
-            witness: Optional witness data (defaults to [1,2,3,4])
+            witness: Optional witness data (defaults to [1]*(num_constraints+1))
         
         Returns:
             dict: Test result with timing and status
         """
         if witness is None:
-            witness = [1, 2, 3, 4]
+            witness = [1] * (num_constraints + 1)
         
         result = {
             "test": "simple_proof",
@@ -45,19 +45,24 @@ class YoimiyaTester:
             "status": "FAILED"
         }
         
+        # Use a fresh SRS if the stored one is too small for this constraint count
+        srs = self.srs
+        if self.srs.max_degree < num_constraints + 1:
+            srs = generate_test_srs(max_degree=num_constraints + 1)
+        
         try:
             # Measure proof generation time
             start = time.perf_counter()
             proof = prove_test(
                 num_constraints=num_constraints,
                 witness=witness,
-                srs=self.srs
+                srs=srs
             )
             prove_time = (time.perf_counter() - start) * 1000  # Convert to ms
             
             # Measure verification time
             start = time.perf_counter()
-            valid = proof.verify(self.srs)
+            valid = proof.verify(srs)
             verify_time = (time.perf_counter() - start) * 1000
             
             result["status"] = "PASSED" if valid else "FAILED"
@@ -84,7 +89,7 @@ class YoimiyaTester:
             dict: Test result with timing and status
         """
         if witness is None:
-            witness = [1, 2, 3, 4]
+            witness = [1] * (constraints_per_proof + 1)
         
         result = {
             "test": "batch_aggregation",
@@ -140,7 +145,7 @@ class YoimiyaTester:
         
         results = []
         for size in constraint_sizes:
-            result = self.test_simple_proof(num_constraints=size, witness=[1, 2, 3, 4])
+            result = self.test_simple_proof(num_constraints=size)
             results.append(result)
         
         return results
@@ -168,7 +173,12 @@ class YoimiyaTester:
         results = []
         for size in constraint_sizes:
             print(f"  Testing {size:,} constraints...", end=" ", flush=True)
-            result = self.test_simple_proof(num_constraints=size, witness=[1, 2, 3, 4])
+            # Each size needs its own SRS large enough for that constraint count
+            local_srs = generate_test_srs(max_degree=size + 1)
+            old_srs = self.srs
+            self.srs = local_srs
+            result = self.test_simple_proof(num_constraints=size)
+            self.srs = old_srs
             if result.get("status") == "PASSED":
                 print(f"✓ Prove: {result.get('prove_ms')}ms, Verify: {result.get('verify_ms')}ms")
             else:
@@ -228,7 +238,7 @@ class YoimiyaTester:
         
         # Test 4: Stress test
         print("[4/4] Testing high-constraint proof...")
-        stress_test = self.test_simple_proof(num_constraints=5000, witness=[1, 2, 3, 4])
+        stress_test = self.test_simple_proof(num_constraints=5000)
         
         # Print summary
         self._print_summary()

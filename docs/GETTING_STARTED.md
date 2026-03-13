@@ -19,11 +19,27 @@ The Yoimiya SDK is distributed as **pre-compiled binaries only**. There's no sou
 
 ## ⚠️ Important: Binary Availability
 
-**First check the release status:** See [RELEASE_STATUS.md](RELEASE_STATUS.md) to check if binaries are available for your platform.
+**⚠️ PRE-COMPILED BINARIES ARE NOT YET AVAILABLE**
 
-- ✅ SDK structure and all bindings are ready
-- ⏳ Pre-compiled binaries are being built via GitHub Actions
-- 📋 Check GitHub Actions for build progress: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
+**Current Status:**
+- ✅ SDK structure, bindings, tests, documentation ready
+- ❌ Pre-compiled binaries not yet published
+- ⏳ Waiting for GitHub Actions to build and upload binaries
+
+**Your Options:**
+
+1. **Wait for Binaries (Recommended)** 
+   - Check back in 30-60 minutes
+   - Monitor: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
+   - Download when available
+
+2. **Build Binaries Locally (If You Need Testing Now)**
+   - Clone source: `git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git`
+   - Build: `cargo build --release`
+   - Copy binaries to `platforms/YOUR_PLATFORM/`
+   - Then follow setup steps below
+
+**See [RELEASE_STATUS.md](RELEASE_STATUS.md) for more details.**
 
 ---
 

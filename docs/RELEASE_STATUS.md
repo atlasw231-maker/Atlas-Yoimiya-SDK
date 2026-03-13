@@ -5,29 +5,55 @@
 
 ---
 
-## 📦 Binary Distribution Status
+## � IMPORTANT: Binaries Not Yet Available
 
-### Current Status: Pre-Release (Binaries Building)
+**Current Status: SDK Structure Ready, Binaries Building**
 
-The Atlas-Yoimiya-SDK v0.1.0 is in **pre-release** with binaries currently being built by GitHub Actions CI/CD.
+❌ **Pre-compiled binaries are NOT YET available for download**
+✅ **SDK structure, bindings, and documentation are ready**
+⏳ **GitHub Actions workflow needs to be triggered to build binaries**
 
-**What's Available Now:**
-- ✅ SDK structure and all language bindings
-- ✅ Test utilities library
-- ✅ Documentation and examples
-- ✅ C headers for native integration
-- ⏳ Pre-compiled binaries (building via CI/CD)
-
-**Expected Timeline:**
-- GitHub Actions CI/CD workflow builds binaries for all 6 platforms
-- Binaries uploaded to GitHub Releases as release assets
-- Process takes approximately 30-60 minutes per platform
+If you went to GitHub Releases and saw a 404 or empty Assets section, **this is expected**. The binaries haven't been built yet.
 
 ---
 
-## 🔄 Getting Binaries
+## What To Do Right Now
 
-### Option 1: Download Pre-Built Binaries (When Available)
+### Option 1: Wait for Binaries (Recommended)
+
+**Timeline:** Binaries will be available ~30-60 minutes after GitHub Actions is triggered
+
+1. Check when binaries will be ready by monitoring: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
+2. Once all workflows complete, binary assets will appear in: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
+3. Download binaries for your platform
+4. Extract to `platforms/YOUR_PLATFORM/`
+
+### Option 2: Build Binaries Locally (If You Need Them Now)
+
+If you need to test immediately while waiting for GitHub Actions:
+
+```bash
+# Clone the original source repository
+git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git
+cd Yoimiya-SDK
+
+# Build for your platform
+cargo build --release
+
+# Binaries will be in target/release/
+# libyoimiya.so (Linux)
+# libyoimiya.dylib (macOS)
+# yoimiya.dll (Windows)
+
+# Copy to your SDK directory
+cp target/release/libyoimiya.* ../Atlas-Yoimiya-SDK/platforms/YOUR_PLATFORM/
+```
+
+**Then proceed with SDK setup and testing.**
+
+---
+
+## 📋 Current Status: SDK Structure Ready
 
 Once GitHub Actions completes, binaries will be available as release assets:
 

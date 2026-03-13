@@ -38,36 +38,122 @@ Yoimiya SDK enables you to:
 
 ## 📦 Quick Start
 
-### ⚠️ Binaries Not Yet Available
+### ✅ Release Assets Are Available
 
-**Pre-compiled binaries are building. They are not yet available for download.**
+Download from: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
 
-**Your Options:**
+Required binary per platform:
 
-1. **Download SDK + Wait for Binaries**
-   - Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
-   - Download SDK ZIP/TAR
-   - Check back in ~30-60 minutes for binary assets
-   - Download binaries for your platform
-   - Extract binaries to `platforms/YOUR_PLATFORM/`
+| Platform | Binary Asset |
+|----------|--------------|
+| Windows x86_64 | `yoimiya-windows-x86_64.dll` |
+| Linux x86_64 | `libyoimiya-linux-x86_64.so` |
+| macOS x86_64 | `libyoimiya-macos-x86_64.dylib` |
+| macOS ARM64 | `libyoimiya-macos-aarch64.dylib` |
+| Android ARMv8 | `libyoimiya-android-armv8.so` |
+| iOS ARM64 | `libyoimiya-ios-arm64.a` |
 
-2. **Build Binaries Now (If You Need Testing Immediately)**
-   - Build from source: `git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git && cd Yoimiya-SDK && cargo build --release`
-   - Copy binaries to your SDK: `cp target/release/libyoimiya.* platforms/YOUR_PLATFORM/`
-   - Then proceed with setup
+Place the binary in `platforms/<your-platform>/` (or `bindings/python/` for quick Python testing).
 
-**For complete details, See [docs/RELEASE_STATUS.md](docs/RELEASE_STATUS.md) and [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)**
+### ✅ Must-Pass Validation Checklist (All Devs)
 
----
+Before writing app code, run this checklist exactly once:
 
-## ⏱️ Timeline
+1. Download the binary that matches your OS + architecture from the release page.
+2. Ensure the filename includes your platform explicitly (for example `linux-x86_64`, `macos-aarch64`, `android-armv8`).
+3. Verify architecture locally:
+  - Linux: `file libyoimiya-linux-x86_64.so`
+  - macOS: `file libyoimiya-macos-x86_64.dylib` or `file libyoimiya-macos-aarch64.dylib`
+4. Place the file into `platforms/<your-platform>/`.
+5. Run the Python smoke test below and confirm:
+  - `valid=True`
+  - `bytes=164`
+6. If using `yoimiya_prove_test(...)` (manual SRS), ensure witness length is always `num_constraints + 1`.
 
-| Status | Timing |
-|--------|--------|
-| SDK Structure | ✅ Ready now |
-| Bindings & Tests | ✅ Ready now |
-| Documentation | ✅ Ready now |
-| Binaries | ⏳ ~30-60 min from now |
+If any step fails, see the Troubleshooting section in this README first.
+
+### ⚡ 5-Minute Device Test (Python)
+
+```bash
+cd bindings/python
+python -c "import yoimiya; n=1000; w=[1]*(n+1); p=yoimiya.prove_test_precompiled(n,w); print('valid=', p.verify_precompiled(), 'bytes=', p.byte_size())"
+```
+
+Expected output:
+- `valid=True`
+- `bytes=164`
+
+Notes:
+- For `num_constraints = n`, witness length must be at least `n + 1`
+  (equivalently: `witness_len > n`).
+- `prove_test_precompiled(...)` uses bundled precompiled SRS automatically.
+
+### 🔍 C ABI Smoke Test (NULL Pointer Guard)
+
+Use this to quickly detect wrong binary selection or witness mismatch:
+
+```bash
+python - <<'PY'
+import ctypes
+
+lib = ctypes.CDLL('./platforms/linux-x86_64/libyoimiya-linux-x86_64.so')
+
+class YoimiyaSrs(ctypes.Structure):
+  pass
+
+class YoimiyaProof(ctypes.Structure):
+  pass
+
+lib.yoimiya_generate_test_srs.argtypes = [ctypes.c_uint32]
+lib.yoimiya_generate_test_srs.restype = ctypes.POINTER(YoimiyaSrs)
+
+lib.yoimiya_prove_test.argtypes = [
+  ctypes.c_uint32,
+  ctypes.POINTER(ctypes.c_uint64),
+  ctypes.c_uint32,
+  ctypes.POINTER(YoimiyaSrs),
+]
+lib.yoimiya_prove_test.restype = ctypes.POINTER(YoimiyaProof)
+
+lib.yoimiya_free_proof.argtypes = [ctypes.POINTER(YoimiyaProof)]
+lib.yoimiya_free_srs.argtypes = [ctypes.POINTER(YoimiyaSrs)]
+
+n = 1000
+srs = lib.yoimiya_generate_test_srs(n + 1)
+witness = (ctypes.c_uint64 * (n + 1))(*([1] * (n + 1)))
+proof = lib.yoimiya_prove_test(n, witness, n + 1, srs)
+
+print('proof_ptr_is_null=', not bool(proof))
+
+if proof:
+  lib.yoimiya_free_proof(proof)
+lib.yoimiya_free_srs(srs)
+PY
+```
+
+Expected output: `proof_ptr_is_null=False`
+
+### 📈 Benchmark Commands (100 → 1,000,000 constraints)
+
+Run this from the SDK root to benchmark prove/verify across small to very large circuits:
+
+```bash
+python -c "import sys,time; sys.path.insert(0,'bindings/python'); import yoimiya as y; sizes=[100,500,1000,2000,10000,50000,100000,250000,500000,1000000]; print('constraints,prove_ms,verify_ms,ok,proof_bytes');
+for n in sizes:
+  w=[1]*(n+1)
+  t=time.perf_counter(); p=y.prove_test_precompiled(n,w); prove=(time.perf_counter()-t)*1000
+  t=time.perf_counter(); ok=p.verify_precompiled(); verify=(time.perf_counter()-t)*1000
+  print(f'{n},{prove:.2f},{verify:.3f},{ok},{p.byte_size()}')"
+```
+
+If you want fixed 1M telemetry (including peak memory), run:
+
+```bash
+python test_1m_only.py
+```
+
+Tip: The first touch of a new precompiled SRS tier can include one-time setup cost.
+For stable numbers, run the benchmark command once as warmup, then run it again for measured timings.
 
 ---
 
@@ -84,17 +170,17 @@ Yoimiya SDK enables you to:
 sdk/
 ├── platforms/          # Pre-built binaries for each platform
 │   ├── windows-x86_64/
-│   │   └── yoimiya.dll
+│   │   └── yoimiya-windows-x86_64.dll
 │   ├── linux-x86_64/
-│   │   └── libyoimiya.so
+│   │   └── libyoimiya-linux-x86_64.so
 │   ├── macos-x86_64/
-│   │   └── libyoimiya.dylib
+│   │   └── libyoimiya-macos-x86_64.dylib
 │   ├── macos-aarch64/
-│   │   └── libyoimiya.dylib
+│   │   └── libyoimiya-macos-aarch64.dylib
 │   ├── android-armv8/
-│   │   └── libyoimiya.so
+│   │   └── libyoimiya-android-armv8.so
 │   └── ios-arm64/
-│       └── libyoimiya.dylib
+│       └── libyoimiya-ios-arm64.a
 ├── include/            # C headers
 ├── bindings/           # Language-specific bindings
 │   ├── python/         # Python ctypes bindings
@@ -108,7 +194,7 @@ sdk/
 └── docs/               # Full documentation
 ```
 
-**⚠️ Important:** Binary files (.dll, .dylib, .so) must be present in their respective platform directories. See [GETTING_STARTED.md](docs/GETTING_STARTED.md) if binaries are missing.
+**⚠️ Important:** Binary files (.dll, .dylib, .so, .a) must be present in their respective platform directories.
 
 ---
 
@@ -148,14 +234,47 @@ cd sdk/bindings/python
 pip install .
 ```
 
-**Usage:**
+**Usage (recommended, no manual SRS):**
 ```python
-from yoimiya import generate_test_srs, prove_test, aggregate_proofs
+from yoimiya import prove_test_precompiled
 
-srs = generate_test_srs(max_degree=2048)
-proof = prove_test(num_constraints=500, witness=[1,2,3,4], srs=srs)
+num_constraints = 500
+witness = [1] * (num_constraints + 1)
+
+proof = prove_test_precompiled(num_constraints=num_constraints, witness=witness)
+assert proof.verify_precompiled()
+```
+
+**Usage (explicit SRS):**
+```python
+from yoimiya import generate_test_srs, prove_test
+
+num_constraints = 500
+witness = [1] * (num_constraints + 1)
+srs = generate_test_srs(max_degree=num_constraints + 1)
+
+proof = prove_test(num_constraints=num_constraints, witness=witness, srs=srs)
 assert proof.verify(srs)
 ```
+
+### Troubleshooting (Important)
+
+If `yoimiya_prove_test()` returns NULL or a wrapper raises `Failed to prove`, check these in order:
+
+1. Wrong binary for your platform/arch:
+  - Linux must use `libyoimiya-linux-x86_64.so`
+  - macOS Intel must use `libyoimiya-macos-x86_64.dylib`
+  - macOS Apple Silicon must use `libyoimiya-macos-aarch64.dylib`
+2. Witness length mismatch:
+  - For `num_constraints = n`, witness length must be at least `n + 1`
+    (equivalently: `witness_len > n`)
+3. SRS too small (manual SRS path):
+  - `max_degree >= num_constraints + 1`
+4. Stale binary copy:
+  - Remove old `.so/.dylib/.dll` files from platform and binding folders, then copy only the intended one.
+
+If needed, prefer the precompiled API first:
+`prove_test_precompiled(...)` + `verify_precompiled(...)`
 
 ### Node.js
 
@@ -188,11 +307,9 @@ gcc -o myapp myapp.c \
 ```c
 #include <yoimiya.h>
 
-YoimiyaSrs* srs = yoimiya_generate_test_srs(2048);
-YoimiyaProof* proof = yoimiya_prove_test(500, witness, len, srs);
-int valid = yoimiya_verify(proof, srs);  // 1 = valid, 0 = invalid
+YoimiyaProof* proof = yoimiya_prove_test_precompiled(500, witness, len);
+int valid = yoimiya_verify_precompiled(proof);  // 1 = valid, 0 = invalid
 yoimiya_free_proof(proof);
-yoimiya_free_srs(srs);
 ```
 
 ### C#
@@ -271,10 +388,13 @@ gcc -o c_example c_example.c \
 | Function | Purpose |
 |----------|---------|
 | `generate_test_srs(max_degree)` | Generate SRS |
+| `precompiled_srs_degree(num_constraints)` | Get bundled SRS tier for this circuit size |
 | `prove_test(constraints, witness, srs)` | Prove test circuit |
+| `prove_test_precompiled(constraints, witness)` | Prove without manual SRS handle |
 | `verify(proof, srs)` | Verify single proof |
+| `verify_precompiled(proof)` | Verify without manual SRS handle |
 | `aggregate_proofs(proofs[], srs)` | Aggregate proofs |
-| `verify_batch(batch_proof, srs)` | Verify batch proof |
+| `batch_proof.to_calldata()` | Serialize batch proof to 275-byte EVM calldata |
 
 ---
 
@@ -283,16 +403,13 @@ gcc -o c_example c_example.c \
 ### Generate Proofs on Your Dev Machine
 
 ```python
-# Python
-from yoimiya import generate_test_srs, prove_test
+# Python (fast path)
+from yoimiya import prove_test_precompiled
 
-srs = generate_test_srs(max_degree=2048)
-proof = prove_test(
-    num_constraints=1000,
-    witness=[1,2,3,4],
-    srs=srs
-)
-assert proof.verify(srs), "Proof failed!"
+n = 1000
+witness = [1] * (n + 1)
+proof = prove_test_precompiled(num_constraints=n, witness=witness)
+assert proof.verify_precompiled(), "Proof failed!"
 ```
 
 **Test with large constraints:**
