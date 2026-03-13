@@ -2,6 +2,28 @@
 
 **Production-ready Zero-Knowledge Proving SDK with multi-platform binaries and language bindings.**
 
+## 🎯 What It Does
+
+Yoimiya SDK enables you to:
+
+- **Generate cryptographic proofs** that verify computational claims without revealing the underlying data
+- **Verify proofs efficiently** with minimal computational overhead
+- **Aggregate multiple proofs** into single proofs for scalable verification
+- **Integrate ZK proving** into applications across platforms: Web, Mobile, Cloud, and Edge
+
+## 🔧 Problems It Solves
+
+| Problem | Solution |
+|---------|----------|
+| **Scalability** | Aggregate thousands of proofs into one, reducing on-chain verification cost |
+| **Privacy** | Prove correctness of computations without exposing sensitive data |
+| **Cross-Platform** | Use the same proving engine across Windows, Linux, macOS, Android, iOS |
+| **Language Flexibility** | Integrate via Python, Node.js, C#, or C—pick your stack |
+| **Performance** | Sub-millisecond proof generation and verification |
+| **Accessibility** | Pre-compiled binaries—no build infrastructure needed |
+
+## 🌍 Platform & Language Support
+
 | Platform | Status | Architecture |
 |----------|--------|--------------|
 | **Windows** | ✅ | x86_64 |
@@ -165,29 +187,7 @@ gcc -o c_example c_example.c \
 
 ---
 
-## 🔧 Building from Source
-
-To rebuild the SDK for your platform:
-
-```bash
-# Unix-like systems
-./scripts/build-sdk.sh all release
-
-# Windows (PowerShell)
-.\scripts\build-sdk.ps1 -Target all -Release
-
-# Specific platform only
-./scripts/build-sdk.sh linux-x86_64 release
-```
-
-**Requirements:**
-- Rust 1.70+
-- Cargo
-- (Optional) Cross-compilation toolchains for non-native targets
-
----
-
-## 🔗 API Overview
+##  API Overview
 
 ### Core Types
 
@@ -257,18 +257,10 @@ See `sdk/docs/README.md` for:
 
 ---
 
-## 📄 License
+## � Links
 
-**Business Source License 1.1 (BSL-1.1)**
-
-See LICENSE file for terms.
-
----
-
-## 🔗 Links
-
-- **Repository**: https://github.com/atlasw231-maker/yoimiya-sdk
-- **Issues**: https://github.com/atlasw231-maker/yoimiya-sdk/issues
+- **Repository**: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK
+- **Issues**: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/issues
 - **Solidity Verifier**: See `contracts/YoimiyaBatchVerifier.sol`
 
 ---
@@ -277,7 +269,7 @@ See LICENSE file for terms.
 
 - **Documentation**: `sdk/docs/`
 - **Examples**: `sdk/examples/`
-- **Issues**: https://github.com/atlasw231-maker/yoimiya-sdk/issues
+- **Issues**: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/issues
 - **Email**: atlasw231@gmail.com
 
 ---
