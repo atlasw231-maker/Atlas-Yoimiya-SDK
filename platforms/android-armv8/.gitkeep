@@ -1,0 +1,3 @@
+# Placeholder for libyoimiya.so
+# This file will be populated by the GitHub Actions CI/CD pipeline
+# when building release binaries for Android ARMv8

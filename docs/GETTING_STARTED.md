@@ -17,27 +17,58 @@ The Yoimiya SDK is distributed as **pre-compiled binaries only**. There's no sou
 
 ---
 
+## ⚠️ Important: Binary Availability
+
+**First check the release status:** See [RELEASE_STATUS.md](RELEASE_STATUS.md) to check if binaries are available for your platform.
+
+- ✅ SDK structure and all bindings are ready
+- ⏳ Pre-compiled binaries are being built via GitHub Actions
+- 📋 Check GitHub Actions for build progress: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
+
+---
+
 ## Step 1: Download the SDK
 
 ### Option A: Using GitHub Releases (Recommended)
 
 **Prerequisites:** Git or manual download capability
 
-1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
+1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
 
-2. Download the latest release (v0.1.0 or newer):
-   - **macOS/Linux:** `yoimiya-sdk-v0.1.0.tar.gz`
-   - **Windows:** `yoimiya-sdk-v0.1.0.zip`
+2. **Download SDK structure:**
+   - Via git clone OR
+   - Download source code ZIP/TAR.GZ
 
-3. Extract the archive:
+3. **Download platform-specific binaries:**
+   - Look under "Assets" section for your platform:
+   - `yoimiya-windows-x86_64.zip` (Windows)
+   - `yoimiya-macos-x86_64.tar.gz` (macOS Intel)
+   - `yoimiya-macos-aarch64.tar.gz` (macOS Apple Silicon)
+   - `yoimiya-linux-x86_64.tar.gz` (Linux)
+   - `yoimiya-android-armv8.tar.gz` (Android)
+   - `yoimiya-ios-arm64.tar.gz` (iOS)
+
+4. Extract the SDK structure:
    ```bash
    # macOS/Linux
-   tar -xzf yoimiya-sdk-v0.1.0.tar.gz
-   cd yoimiya-sdk-v0.1.0
+   tar -xzf Atlas-Yoimiya-SDK-v0.1.0.tar.gz
+   cd Atlas-Yoimiya-SDK
    
    # Windows (using PowerShell)
-   Expand-Archive yoimiya-sdk-v0.1.0.zip
-   cd yoimiya-sdk-v0.1.0
+   Expand-Archive Atlas-Yoimiya-SDK-v0.1.0.zip
+   cd Atlas-Yoimiya-SDK
+   ```
+
+5. Extract your platform's binaries into the correct directory:
+   ```bash
+   # Example: macOS x86_64
+   tar -xzf yoimiya-macos-x86_64.tar.gz -C platforms/macos-x86_64/
+   
+   # Example: Linux
+   tar -xzf yoimiya-linux-x86_64.tar.gz -C platforms/linux-x86_64/
+   
+   # Example: Windows
+   Expand-Archive yoimiya-windows-x86_64.zip -DestinationPath platforms/windows-x86_64/
    ```
 
 ### Option B: Clone the Repository

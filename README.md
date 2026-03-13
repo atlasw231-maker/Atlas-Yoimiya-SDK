@@ -38,12 +38,22 @@ Yoimiya SDK enables you to:
 
 ## 📦 Quick Start
 
+### ⚠️ Binary Status
+
+**Pre-compiled binaries are being built via GitHub Actions CI/CD.**
+
+See [docs/RELEASE_STATUS.md](docs/RELEASE_STATUS.md) for:
+- Current binary build status
+- Timeline for availability  
+- How to download when ready
+- Alternative options if needed
+
 ### Step 1: Download Binary SDK
 
-1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
-2. Download for your platform:
-   - **Windows:** `yoimiya-sdk-v0.1.0.zip`
-   - **macOS/Linux:** `yoimiya-sdk-v0.1.0.tar.gz`
+1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
+2. Download SDK structure (source ZIP or clone repository)
+3. Once available, download platform-specific binary assets
+4. Extract binaries to `platforms/YOUR_PLATFORM/`
 
 ### Step 2: Extract the SDK
 
