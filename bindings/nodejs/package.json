@@ -1,0 +1,39 @@
+{
+  "name": "yoimiya-sdk",
+  "version": "0.1.0",
+  "description": "Yoimiya ZK Proving SDK — universal circuit prover with KZG commitments",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "author": "Atlas Protocol <atlasw231@gmail.com>",
+  "license": "BSL-1.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atlasw231-maker/yoimiya-sdk.git"
+  },
+  "keywords": [
+    "zk",
+    "zero-knowledge",
+    "prover",
+    "bn254",
+    "kzg",
+    "cryptography"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "ffi-napi": "^4.0.3",
+    "ref-napi": "^3.0.3",
+    "ref-struct-di": "^1.1.1",
+    "ref-array-di": "^1.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node test.js",
+    "preinstall": "node scripts/download-binaries.js"
+  }
+}
