@@ -211,6 +211,34 @@ gcc -o c_example c_example.c \
 
 ## 💡 Common Tasks
 
+### Generate Proofs on Your Dev Machine
+
+```python
+# Python
+from yoimiya import generate_test_srs, prove_test
+
+srs = generate_test_srs(max_degree=2048)
+proof = prove_test(
+    num_constraints=1000,
+    witness=[1,2,3,4],
+    srs=srs
+)
+assert proof.verify(srs), "Proof failed!"
+```
+
+**Test with large constraints:**
+```python
+# Test up to 1M constraints
+from libs.test_utils import YoimiyaTester
+
+tester = YoimiyaTester(max_degree=1_000_000)
+results = tester.test_large_constraints([
+    50_000, 100_000, 250_000, 500_000, 1_000_000
+])
+```
+
+**See** [PROOF_GENERATION_GUIDE.md](docs/PROOF_GENERATION_GUIDE.md) for complete developer guide.
+
 ### Prove and Verify
 
 ```python
