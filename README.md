@@ -38,15 +38,24 @@ Yoimiya SDK enables you to:
 
 ## 📦 Quick Start
 
-### Extract the SDK
+### Step 1: Download Binary SDK
+
+1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
+2. Download for your platform:
+   - **Windows:** `yoimiya-sdk-v0.1.0.zip`
+   - **macOS/Linux:** `yoimiya-sdk-v0.1.0.tar.gz`
+
+### Step 2: Extract the SDK
 
 ```bash
 # Unix-like systems
 tar -xzf yoimiya-sdk-v0.1.0.tar.gz
 
 # Windows
-unzip yoimiya-sdk-v0.1.0.zip
+Expand-Archive yoimiya-sdk-v0.1.0.zip
 ```
+
+3. **See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for complete setup and testing guide**
 
 ### Structure
 
@@ -54,19 +63,58 @@ unzip yoimiya-sdk-v0.1.0.zip
 sdk/
 ├── platforms/          # Pre-built binaries for each platform
 │   ├── windows-x86_64/
+│   │   └── yoimiya.dll
 │   ├── linux-x86_64/
+│   │   └── libyoimiya.so
 │   ├── macos-x86_64/
+│   │   └── libyoimiya.dylib
 │   ├── macos-aarch64/
+│   │   └── libyoimiya.dylib
 │   ├── android-armv8/
+│   │   └── libyoimiya.so
 │   └── ios-arm64/
+│       └── libyoimiya.dylib
 ├── include/            # C headers
 ├── bindings/           # Language-specific bindings
 │   ├── python/         # Python ctypes bindings
 │   ├── nodejs/         # Node.js FFI bindings
 │   └── csharp/         # C# P/Invoke bindings
+├── libs/               # Test utilities library
+│   ├── test-utils.py
+│   ├── test-utils.js
+│   └── test-utils.cs
 ├── examples/           # Complete working examples
 └── docs/               # Full documentation
 ```
+
+**⚠️ Important:** Binary files (.dll, .dylib, .so) must be present in their respective platform directories. See [GETTING_STARTED.md](docs/GETTING_STARTED.md) if binaries are missing.
+
+---
+
+## ✅ Test Installation
+
+**Quick test to verify SDK is working:**
+
+```bash
+# Python
+python libs/test-utils.py
+
+# Node.js
+node libs/test-utils.js
+
+# C#
+csc Program.cs libs/test-utils.cs && Program.exe
+```
+
+**Expected:** All tests should pass (14/14).
+
+**See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for:**
+- How to download binaries
+- Platform-specific setup
+- Building language bindings
+- Running full test suite
+- Testing large constraints (up to 1M)
+- Troubleshooting
 
 ---
 
