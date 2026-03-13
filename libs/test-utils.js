@@ -8,6 +8,21 @@
 const { generateTestSrs, proveTest, aggregateProofs } = require('../bindings/nodejs');
 
 
+function witnessForConstraints(numConstraints) {
+    return Array(numConstraints + 1).fill(1n);
+}
+
+
+function roundMetric(value) {
+    return Math.round(value * 10000) / 10000;
+}
+
+
+function currentRssBytes() {
+    return process.memoryUsage().rss;
+}
+
+
 class YoimiyaTester {
     /**
      * Initialize tester with SRS
@@ -27,7 +42,7 @@ class YoimiyaTester {
      */
     testSimpleProof(numConstraints = 100, witness = null) {
         if (!witness) {
-            witness = [1n, 2n, 3n, 4n];
+            witness = witnessForConstraints(numConstraints);
         }
 
         const result = {
@@ -36,21 +51,33 @@ class YoimiyaTester {
             status: 'FAILED'
         };
 
+        const baselineRss = currentRssBytes();
+
+        let srs = this.srs;
+        if (this.maxDegree < (numConstraints + 1)) {
+            srs = generateTestSrs(numConstraints + 1);
+        }
+
         try {
             // Measure proof generation time
             let start = process.hrtime.bigint();
-            const proof = proveTest(numConstraints, witness, this.srs);
+            const proof = proveTest(numConstraints, witness, srs);
             const proveTime = Number(process.hrtime.bigint() - start) / 1_000_000; // Convert to ms
 
             // Measure verification time
             start = process.hrtime.bigint();
-            const valid = proof.verify(this.srs);
+            const valid = proof.verify(srs);
             const verifyTime = Number(process.hrtime.bigint() - start) / 1_000_000;
 
             result.status = valid ? 'PASSED' : 'FAILED';
-            result.prove_ms = Math.round(proveTime * 10000) / 10000;
-            result.verify_ms = Math.round(verifyTime * 10000) / 10000;
+            result.prove_ms = roundMetric(proveTime);
+            result.verify_ms = roundMetric(verifyTime);
+            result.proof_bytes = proof.byteSize();
             result.proof_valid = valid;
+            result.peak_rss_bytes = currentRssBytes();
+            result.peak_rss_mb = roundMetric(result.peak_rss_bytes / (1024 * 1024));
+            result.peak_rss_delta_bytes = Math.max(0, result.peak_rss_bytes - baselineRss);
+            result.peak_rss_delta_mb = roundMetric(result.peak_rss_delta_bytes / (1024 * 1024));
 
         } catch (error) {
             result.error = error.message;
@@ -69,7 +96,7 @@ class YoimiyaTester {
      */
     testBatchAggregation(numProofs = 5, constraintsPerProof = 100, witness = null) {
         if (!witness) {
-            witness = [1n, 2n, 3n, 4n];
+            witness = witnessForConstraints(constraintsPerProof);
         }
 
         const result = {
@@ -78,6 +105,8 @@ class YoimiyaTester {
             constraints_per_proof: constraintsPerProof,
             status: 'FAILED'
         };
+
+        const baselineRss = currentRssBytes();
 
         try {
             // Generate multiple proofs
@@ -98,9 +127,14 @@ class YoimiyaTester {
             const verifyTime = Number(process.hrtime.bigint() - start) / 1_000_000;
 
             result.status = valid ? 'PASSED' : 'FAILED';
-            result.aggregate_ms = Math.round(aggregateTime * 10000) / 10000;
-            result.batch_verify_ms = Math.round(verifyTime * 10000) / 10000;
+            result.aggregate_ms = roundMetric(aggregateTime);
+            result.batch_verify_ms = roundMetric(verifyTime);
+            result.batch_bytes = batchProof.toCalldata().length;
             result.batch_valid = valid;
+            result.peak_rss_bytes = currentRssBytes();
+            result.peak_rss_mb = roundMetric(result.peak_rss_bytes / (1024 * 1024));
+            result.peak_rss_delta_bytes = Math.max(0, result.peak_rss_bytes - baselineRss);
+            result.peak_rss_delta_mb = roundMetric(result.peak_rss_delta_bytes / (1024 * 1024));
 
         } catch (error) {
             result.error = error.message;
@@ -122,7 +156,7 @@ class YoimiyaTester {
 
         const results = [];
         for (const size of constraintSizes) {
-            const result = this.testSimpleProof(size, [1n, 2n, 3n, 4n]);
+            const result = this.testSimpleProof(size, witnessForConstraints(size));
             results.push(result);
         }
 
@@ -146,9 +180,9 @@ class YoimiyaTester {
         const results = [];
         for (const size of constraintSizes) {
             process.stdout.write(`  Testing ${size.toLocaleString()} constraints... `);
-            const result = this.testSimpleProof(size, [1n, 2n, 3n, 4n]);
+            const result = this.testSimpleProof(size, witnessForConstraints(size));
             if (result.status === 'PASSED') {
-                console.log(`✓ Prove: ${result.prove_ms}ms, Verify: ${result.verify_ms}ms`);
+                console.log(`✓ Prove: ${result.prove_ms}ms, Verify: ${result.verify_ms}ms, Proof: ${result.proof_bytes} bytes, Peak RSS: ${result.peak_rss_mb} MB`);
             } else {
                 console.log(`✗ Failed: ${result.error || 'Unknown error'}`);
             }
@@ -200,7 +234,7 @@ class YoimiyaTester {
 
         // Test 4: Stress test
         console.log('[4/4] Testing high-constraint proof...');
-        const stressTest = this.testSimpleProof(5000, [1n, 2n, 3n, 4n]);
+        const stressTest = this.testSimpleProof(5000, witnessForConstraints(5000));
 
         // Print summary
         this._printSummary();
@@ -237,10 +271,10 @@ class YoimiyaTester {
 
             if (testName === 'simple_proof') {
                 console.log(`${status} ${testName.padEnd(20)} | Constraints: ${String(result.constraints).padEnd(6)} | ` +
-                    `Prove: ${result.prove_ms}ms | Verify: ${result.verify_ms}ms`);
+                    `Prove: ${result.prove_ms}ms | Verify: ${result.verify_ms}ms | Proof: ${result.proof_bytes} bytes | Peak RSS: ${result.peak_rss_mb} MB`);
             } else if (testName === 'batch_aggregation') {
                 console.log(`${status} ${testName.padEnd(20)} | Proofs: ${String(result.num_proofs).padEnd(6)} | ` +
-                    `Aggregate: ${result.aggregate_ms}ms | Verify: ${result.batch_verify_ms}ms`);
+                    `Aggregate: ${result.aggregate_ms}ms | Verify: ${result.batch_verify_ms}ms | Calldata: ${result.batch_bytes} bytes | Peak RSS: ${result.peak_rss_mb} MB`);
             }
         }
     }
@@ -256,7 +290,7 @@ async function quickTest() {
 
     if (result.status === 'PASSED') {
         console.log(`✓ SDK is working! Proof generation: ${result.prove_ms}ms, ` +
-            `Verification: ${result.verify_ms}ms`);
+            `Verification: ${result.verify_ms}ms, Proof: ${result.proof_bytes} bytes, Peak RSS: ${result.peak_rss_mb} MB`);
     } else {
         console.log('✗ SDK test failed!');
         if (result.error) {

@@ -16,6 +16,12 @@ const fs = require('fs');
 function getLibraryPath() {
   const platform = os.platform();
   const arch = os.arch();
+  const platformDirMap = {
+    'win32:x64': 'windows-x86_64',
+    'linux:x64': 'linux-x86_64',
+    'darwin:x64': 'macos-x86_64',
+    'darwin:arm64': 'macos-aarch64',
+  };
   
   const libMap = {
     'win32': 'yoimiya.dll',
@@ -32,7 +38,7 @@ function getLibraryPath() {
     libName,
     path.join(__dirname, libName),
     path.join(__dirname, 'lib', libName),
-    path.join(__dirname, '..', 'platforms', `${platform}-${arch}`, libName),
+    path.join(__dirname, '..', '..', 'platforms', platformDirMap[`${platform}:${arch}`] || `${platform}-${arch}`, libName),
   ];
   
   for (const searchPath of searchPaths) {
@@ -66,6 +72,7 @@ const lib = ffi.Library(libPath, {
   'yoimiya_prove_test': [YoimiyaProofPtr, ['uint32', ref.refType(ref.types.uint64), 'uint32', YoimiyaSrsPtr]],
   'yoimiya_prove_r1cs': [YoimiyaProofPtr, ['string', ref.refType(ref.types.uint64), 'uint32', YoimiyaSrsPtr]],
   'yoimiya_free_proof': ['void', [YoimiyaProofPtr]],
+  'yoimiya_proof_size_bytes': ['int32', [YoimiyaProofPtr]],
   
   // Verification
   'yoimiya_verify': ['int32', [YoimiyaProofPtr, YoimiyaSrsPtr]],
@@ -74,6 +81,7 @@ const lib = ffi.Library(libPath, {
   'yoimiya_aggregate': [YoimiyaBatchProofPtr, [YoimiyaProofPtrPtr, 'uint32', YoimiyaSrsPtr]],
   'yoimiya_free_batch_proof': ['void', [YoimiyaBatchProofPtr]],
   'yoimiya_verify_batch': ['int32', [YoimiyaBatchProofPtr, YoimiyaSrsPtr]],
+  'yoimiya_batch_to_calldata': ['int32', [YoimiyaBatchProofPtr, ref.refType(ref.types.uint8), 'uint32']],
 });
 
 // Wrapper classes
@@ -104,6 +112,14 @@ class Proof {
     }
     return result === 1;
   }
+
+  byteSize() {
+    const size = lib.yoimiya_proof_size_bytes(this.handle);
+    if (size < 0) {
+      throw new Error('Failed to get proof byte size');
+    }
+    return size;
+  }
   
   destroy() {
     if (this.handle && !this.handle.isNull()) {
@@ -124,6 +140,15 @@ class BatchProof {
     }
     return result === 1;
   }
+
+  toCalldata() {
+    const buffer = Buffer.alloc(275);
+    const written = lib.yoimiya_batch_to_calldata(this.handle, buffer, 275);
+    if (written < 0) {
+      throw new Error('Failed to serialize batch proof');
+    }
+    return buffer.subarray(0, written);
+  }
   
   destroy() {
     if (this.handle && !this.handle.isNull()) {
@@ -138,6 +163,10 @@ function generateTestSrs(maxDegree) {
 }
 
 function proveTest(numConstraints, witness, srs) {
+  if (witness.length < (numConstraints + 1)) {
+    throw new Error(`witness too short: got ${witness.length}, need at least ${numConstraints + 1} for numConstraints=${numConstraints}`);
+  }
+
   const witnessArray = Buffer.allocUnsafe(witness.length * 8);
   for (let i = 0; i < witness.length; i++) {
     witnessArray.writeBigUInt64LE(BigInt(witness[i]), i * 8);

@@ -5,7 +5,10 @@ This module provides convenient utilities for testing proofs, verifications,
 and batch operations without needing to understand the internal implementation.
 """
 
+import ctypes
+import platform
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -14,6 +17,102 @@ BINDINGS_PATH = Path(__file__).parent.parent / "bindings" / "python"
 sys.path.insert(0, str(BINDINGS_PATH))
 
 from yoimiya import generate_test_srs, prove_test, aggregate_proofs
+
+
+def _format_rss_mb(rss_bytes):
+    if rss_bytes is None:
+        return "N/A"
+    return round(rss_bytes / (1024 * 1024), 2)
+
+
+def _current_rss_bytes():
+    system = platform.system()
+
+    if system == "Windows":
+        from ctypes import wintypes
+
+        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        counters = PROCESS_MEMORY_COUNTERS()
+        counters.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        psapi.GetProcessMemoryInfo.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(PROCESS_MEMORY_COUNTERS),
+            wintypes.DWORD,
+        ]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+        process = kernel32.GetCurrentProcess()
+        ok = psapi.GetProcessMemoryInfo(process, ctypes.byref(counters), counters.cb)
+        if ok:
+            return int(counters.WorkingSetSize)
+        return None
+
+    proc_status = Path("/proc/self/status")
+    if proc_status.exists():
+        for line in proc_status.read_text().splitlines():
+            if line.startswith("VmRSS:"):
+                parts = line.split()
+                if len(parts) >= 2:
+                    return int(parts[1]) * 1024
+
+    try:
+        import resource
+
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if system == "Darwin":
+            return int(rss)
+        return int(rss) * 1024
+    except Exception:
+        return None
+
+
+class _PeakMemorySampler:
+    def __init__(self, interval_seconds=0.01):
+        self.interval_seconds = interval_seconds
+        self._stop_event = threading.Event()
+        self._thread = None
+        self._max_rss = _current_rss_bytes()
+
+    def start(self):
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join()
+        current = _current_rss_bytes()
+        if current is not None:
+            if self._max_rss is None:
+                self._max_rss = current
+            else:
+                self._max_rss = max(self._max_rss, current)
+        return self._max_rss
+
+    def _run(self):
+        while not self._stop_event.wait(self.interval_seconds):
+            current = _current_rss_bytes()
+            if current is None:
+                continue
+            if self._max_rss is None:
+                self._max_rss = current
+            else:
+                self._max_rss = max(self._max_rss, current)
 
 
 class YoimiyaTester:
@@ -44,6 +143,8 @@ class YoimiyaTester:
             "constraints": num_constraints,
             "status": "FAILED"
         }
+        baseline_rss = _current_rss_bytes()
+        sampler = _PeakMemorySampler()
         
         # Use a fresh SRS if the stored one is too small for this constraint count
         srs = self.srs
@@ -51,6 +152,7 @@ class YoimiyaTester:
             srs = generate_test_srs(max_degree=num_constraints + 1)
         
         try:
+            sampler.start()
             # Measure proof generation time
             start = time.perf_counter()
             proof = prove_test(
@@ -68,10 +170,18 @@ class YoimiyaTester:
             result["status"] = "PASSED" if valid else "FAILED"
             result["prove_ms"] = round(prove_time, 4)
             result["verify_ms"] = round(verify_time, 4)
+            result["proof_bytes"] = proof.byte_size()
             result["proof_valid"] = valid
             
         except Exception as e:
             result["error"] = str(e)
+        finally:
+            peak_rss = sampler.stop()
+            result["peak_rss_bytes"] = peak_rss
+            result["peak_rss_mb"] = _format_rss_mb(peak_rss)
+            if baseline_rss is not None and peak_rss is not None:
+                result["peak_rss_delta_bytes"] = max(0, peak_rss - baseline_rss)
+                result["peak_rss_delta_mb"] = _format_rss_mb(result["peak_rss_delta_bytes"])
         
         self.test_results.append(result)
         return result
@@ -97,8 +207,11 @@ class YoimiyaTester:
             "constraints_per_proof": constraints_per_proof,
             "status": "FAILED"
         }
+        baseline_rss = _current_rss_bytes()
+        sampler = _PeakMemorySampler()
         
         try:
+            sampler.start()
             # Generate multiple proofs
             proofs = []
             for i in range(num_proofs):
@@ -122,10 +235,18 @@ class YoimiyaTester:
             result["status"] = "PASSED" if valid else "FAILED"
             result["aggregate_ms"] = round(aggregate_time, 4)
             result["batch_verify_ms"] = round(verify_time, 4)
+            result["batch_bytes"] = len(batch_proof.to_calldata())
             result["batch_valid"] = valid
             
         except Exception as e:
             result["error"] = str(e)
+        finally:
+            peak_rss = sampler.stop()
+            result["peak_rss_bytes"] = peak_rss
+            result["peak_rss_mb"] = _format_rss_mb(peak_rss)
+            if baseline_rss is not None and peak_rss is not None:
+                result["peak_rss_delta_bytes"] = max(0, peak_rss - baseline_rss)
+                result["peak_rss_delta_mb"] = _format_rss_mb(result["peak_rss_delta_bytes"])
         
         self.test_results.append(result)
         return result
@@ -180,7 +301,10 @@ class YoimiyaTester:
             result = self.test_simple_proof(num_constraints=size)
             self.srs = old_srs
             if result.get("status") == "PASSED":
-                print(f"✓ Prove: {result.get('prove_ms')}ms, Verify: {result.get('verify_ms')}ms")
+                print(
+                    f"✓ Prove: {result.get('prove_ms')}ms, Verify: {result.get('verify_ms')}ms, "
+                    f"Proof: {result.get('proof_bytes')} bytes, Peak RSS: {result.get('peak_rss_mb')} MB"
+                )
             else:
                 print(f"✗ Failed: {result.get('error', 'Unknown error')}")
             results.append(result)
@@ -271,10 +395,12 @@ class YoimiyaTester:
             
             if test_name == "simple_proof":
                 print(f"{status} {test_name:20} | Constraints: {result.get('constraints', 'N/A'):6} | "
-                      f"Prove: {result.get('prove_ms', 'N/A')}ms | Verify: {result.get('verify_ms', 'N/A')}ms")
+                      f"Prove: {result.get('prove_ms', 'N/A')}ms | Verify: {result.get('verify_ms', 'N/A')}ms | "
+                      f"Proof: {result.get('proof_bytes', 'N/A')} bytes | Peak RSS: {result.get('peak_rss_mb', 'N/A')} MB")
             elif test_name == "batch_aggregation":
                 print(f"{status} {test_name:20} | Proofs: {result.get('num_proofs', 'N/A'):6} | "
-                      f"Aggregate: {result.get('aggregate_ms', 'N/A')}ms | Verify: {result.get('batch_verify_ms', 'N/A')}ms")
+                      f"Aggregate: {result.get('aggregate_ms', 'N/A')}ms | Verify: {result.get('batch_verify_ms', 'N/A')}ms | "
+                      f"Calldata: {result.get('batch_bytes', 'N/A')} bytes | Peak RSS: {result.get('peak_rss_mb', 'N/A')} MB")
 
 
 def quick_test():
@@ -285,7 +411,8 @@ def quick_test():
     
     if result.get("status") == "PASSED":
         print(f"✓ SDK is working! Proof generation: {result.get('prove_ms')}ms, "
-              f"Verification: {result.get('verify_ms')}ms")
+              f"Verification: {result.get('verify_ms')}ms, Proof: {result.get('proof_bytes')} bytes, "
+              f"Peak RSS: {result.get('peak_rss_mb')} MB")
     else:
         print("✗ SDK test failed!")
         if "error" in result:

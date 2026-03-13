@@ -6,8 +6,8 @@ High-level testing utilities for the Yoimiya SDK that make it easy to test proof
 
 The test utilities provide:
 
-- **Simple Proof Testing** - Generate and verify individual proofs with timing metrics
-- **Batch Aggregation Testing** - Test proof aggregation and batch verification
+- **Simple Proof Testing** - Generate and verify individual proofs with prove time, verify time, proof size, and peak RSS telemetry
+- **Batch Aggregation Testing** - Test proof aggregation and batch verification with aggregation time, calldata size, and peak RSS telemetry
 - **Scalability Testing** - Benchmark proof generation across different constraint sizes
 - **Batch Size Testing** - Evaluate performance with different batch sizes
 - **Comprehensive Test Suite** - Run full test coverage in one call
@@ -113,9 +113,14 @@ yoimiya_print_result(&result);
   - `status`: "PASSED" or "FAILED"
   - `prove_ms`: Proof generation time in milliseconds
   - `verify_ms`: Verification time in milliseconds
+    - `proof_bytes`: Serialized proof size in bytes (simple proof tests)
+    - `peak_rss_mb`: Peak resident memory observed during the test
   - `aggregate_ms`: Aggregation time (batch tests only)
   - `batch_verify_ms`: Batch verification time
+    - `batch_bytes`: Serialized batch calldata size in bytes (batch tests only)
   - `error`: Error message if test failed
+
+The Python, Node.js, and C# test helpers now all expose the same core telemetry fields for simple proofs and batch tests.
 
 ### C - Header Functions
 
@@ -151,6 +156,7 @@ results = tester.run_full_test_suite()
 # - ✓ Batch aggregation at 2, 5, 10 proofs
 # - ✓ Large batch test (100 proofs)
 # - ✓ Stress test (5000 constraints)
+# - prove_ms, verify_ms, proof_bytes, and peak_rss_mb telemetry
 ```
 
 **Output:**
@@ -173,15 +179,31 @@ Total tests: 14
 
 Detailed Results:
 ------------------------------------------------------------
-✓ simple_proof         | Constraints: 100    | Prove: 0.0812ms | Verify: 0.5923ms
-✓ simple_proof         | Constraints: 500    | Prove: 0.2043ms | Verify: 0.6104ms
-✓ simple_proof         | Constraints: 1000   | Prove: 0.3301ms | Verify: 0.5987ms
-✓ simple_proof         | Constraints: 2000   | Prove: 0.6234ms | Verify: 0.6124ms
-✓ batch_aggregation    | Proofs: 2          | Aggregate: 0.0026ms | Verify: 0.6210ms
-✓ batch_aggregation    | Proofs: 5          | Aggregate: 0.0095ms | Verify: 0.6345ms
-✓ batch_aggregation    | Proofs: 10         | Aggregate: 0.0187ms | Verify: 0.6521ms
-✓ batch_aggregation    | Proofs: 100        | Aggregate: 0.1923ms | Verify: 0.6789ms
-✓ simple_proof         | Constraints: 5000  | Prove: 1.5234ms | Verify: 0.6145ms
+✓ simple_proof         | Constraints: 100    | Prove: 0.0812ms | Verify: 0.5923ms | Proof: 164 bytes | Peak RSS: 12.40 MB
+✓ simple_proof         | Constraints: 500    | Prove: 0.2043ms | Verify: 0.6104ms | Proof: 164 bytes | Peak RSS: 12.58 MB
+✓ simple_proof         | Constraints: 1000   | Prove: 0.3301ms | Verify: 0.5987ms | Proof: 164 bytes | Peak RSS: 12.91 MB
+✓ simple_proof         | Constraints: 2000   | Prove: 0.6234ms | Verify: 0.6124ms | Proof: 164 bytes | Peak RSS: 13.34 MB
+✓ batch_aggregation    | Proofs: 2          | Aggregate: 0.0026ms | Verify: 0.6210ms | Calldata: 275 bytes | Peak RSS: 13.51 MB
+✓ batch_aggregation    | Proofs: 5          | Aggregate: 0.0095ms | Verify: 0.6345ms | Calldata: 275 bytes | Peak RSS: 13.76 MB
+✓ batch_aggregation    | Proofs: 10         | Aggregate: 0.0187ms | Verify: 0.6521ms | Calldata: 275 bytes | Peak RSS: 14.02 MB
+✓ batch_aggregation    | Proofs: 100        | Aggregate: 0.1923ms | Verify: 0.6789ms | Calldata: 275 bytes | Peak RSS: 16.25 MB
+✓ simple_proof         | Constraints: 5000  | Prove: 1.5234ms | Verify: 0.6145ms | Proof: 164 bytes | Peak RSS: 14.88 MB
+
+## Full Telemetry Benchmark
+
+From the SDK root, run:
+
+```bash
+python benchmark_telemetry.py
+```
+
+This emits one CSV row per constraint size with:
+- `constraints`
+- `prove_ms`
+- `verify_ms`
+- `proof_bytes`
+- `peak_rss_mb`
+- `valid`
 ```
 
 ## What It Tests

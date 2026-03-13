@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Yoimiya.SDK;
+
+using Proof = Yoimiya.SDK.Proof;
+using Srs = Yoimiya.SDK.Srs;
 
 namespace Yoimiya.TestUtils
 {
@@ -11,7 +15,7 @@ namespace Yoimiya.TestUtils
     /// </summary>
     public class YoimiyaTester
     {
-        private readonly YoimiyaSdk.Srs _srs;
+        private readonly Srs _srs;
         private readonly int _maxDegree;
         private readonly List<TestResult> _testResults;
 
@@ -32,7 +36,7 @@ namespace Yoimiya.TestUtils
         {
             if (witness == null)
             {
-                witness = new byte[] { 1, 2, 3, 4 };
+                witness = DefaultWitness(numConstraints);
             }
 
             var result = new TestResult
@@ -42,28 +46,48 @@ namespace Yoimiya.TestUtils
                 Status = "FAILED"
             };
 
+            long baselineRss = Process.GetCurrentProcess().WorkingSet64;
+
+            Srs srs = _srs;
+            if (_maxDegree < (numConstraints + 1))
+            {
+                srs = YoimiyaSdk.GenerateTestSrs((uint)(numConstraints + 1));
+            }
+
             try
             {
                 // Measure proof generation time
                 var sw = Stopwatch.StartNew();
-                var proof = YoimiyaSdk.ProveTest(numConstraints, witness, _srs);
+                using var proof = YoimiyaSdk.ProveTest((uint)numConstraints, ToUlongWitness(witness), srs);
                 sw.Stop();
                 var proveMs = sw.Elapsed.TotalMilliseconds;
 
                 // Measure verification time
                 sw.Restart();
-                var valid = proof.Verify(_srs);
+                var valid = proof.Verify(srs);
                 sw.Stop();
                 var verifyMs = sw.Elapsed.TotalMilliseconds;
 
                 result.Status = valid ? "PASSED" : "FAILED";
                 result.ProveMs = Math.Round(proveMs, 4);
                 result.VerifyMs = Math.Round(verifyMs, 4);
+                result.ProofBytes = proof.ByteSize();
                 result.ProofValid = valid;
+                result.PeakRssBytes = Process.GetCurrentProcess().WorkingSet64;
+                result.PeakRssMb = Math.Round(result.PeakRssBytes / (1024.0 * 1024.0), 2);
+                result.PeakRssDeltaBytes = Math.Max(0, result.PeakRssBytes - baselineRss);
+                result.PeakRssDeltaMb = Math.Round(result.PeakRssDeltaBytes / (1024.0 * 1024.0), 2);
             }
             catch (Exception ex)
             {
                 result.Error = ex.Message;
+            }
+            finally
+            {
+                if (!ReferenceEquals(srs, _srs))
+                {
+                    srs.Dispose();
+                }
             }
 
             _testResults.Add(result);
@@ -77,7 +101,7 @@ namespace Yoimiya.TestUtils
         {
             if (witness == null)
             {
-                witness = new byte[] { 1, 2, 3, 4 };
+                witness = DefaultWitness(constraintsPerProof);
             }
 
             var result = new TestResult
@@ -88,19 +112,22 @@ namespace Yoimiya.TestUtils
                 Status = "FAILED"
             };
 
+            long baselineRss = Process.GetCurrentProcess().WorkingSet64;
+
             try
             {
                 // Generate multiple proofs
-                var proofs = new List<YoimiyaSdk.Proof>();
+                var proofs = new List<Proof>();
+                ulong[] witnessWords = ToUlongWitness(witness);
                 for (int i = 0; i < numProofs; i++)
                 {
-                    var proof = YoimiyaSdk.ProveTest(constraintsPerProof, witness, _srs);
+                    var proof = YoimiyaSdk.ProveTest((uint)constraintsPerProof, witnessWords, _srs);
                     proofs.Add(proof);
                 }
 
                 // Measure aggregation time
                 var sw = Stopwatch.StartNew();
-                var batchProof = YoimiyaSdk.AggregateProofs(proofs.ToArray(), _srs);
+                var batchProof = YoimiyaSdk.AggregateProofs(proofs, _srs);
                 sw.Stop();
                 var aggregateMs = sw.Elapsed.TotalMilliseconds;
 
@@ -113,7 +140,19 @@ namespace Yoimiya.TestUtils
                 result.Status = valid ? "PASSED" : "FAILED";
                 result.AggregateMs = Math.Round(aggregateMs, 4);
                 result.BatchVerifyMs = Math.Round(verifyMs, 4);
+                result.BatchBytes = batchProof.ToCalldata().Length;
                 result.BatchValid = valid;
+                result.PeakRssBytes = Process.GetCurrentProcess().WorkingSet64;
+                result.PeakRssMb = Math.Round(result.PeakRssBytes / (1024.0 * 1024.0), 2);
+                result.PeakRssDeltaBytes = Math.Max(0, result.PeakRssBytes - baselineRss);
+                result.PeakRssDeltaMb = Math.Round(result.PeakRssDeltaBytes / (1024.0 * 1024.0), 2);
+
+                foreach (var proof in proofs)
+                {
+                    proof.Dispose();
+                }
+
+                batchProof.Dispose();
             }
             catch (Exception ex)
             {
@@ -137,7 +176,7 @@ namespace Yoimiya.TestUtils
             var results = new List<TestResult>();
             foreach (var size in constraintSizes)
             {
-                var result = TestSimpleProof(size, new byte[] { 1, 2, 3, 4 });
+                var result = TestSimpleProof(size, DefaultWitness(size));
                 results.Add(result);
             }
 
@@ -163,10 +202,10 @@ namespace Yoimiya.TestUtils
             foreach (var size in constraintSizes)
             {
                 Console.Write($"  Testing {size:N0} constraints... ");
-                var result = TestSimpleProof(size, new byte[] { 1, 2, 3, 4 });
+                var result = TestSimpleProof(size, DefaultWitness(size));
                 if (result.Status == "PASSED")
                 {
-                    Console.WriteLine($"✓ Prove: {result.ProveMs}ms, Verify: {result.VerifyMs}ms");
+                    Console.WriteLine($"✓ Prove: {result.ProveMs}ms, Verify: {result.VerifyMs}ms, Proof: {result.ProofBytes} bytes, Peak RSS: {result.PeakRssMb} MB");
                 }
                 else
                 {
@@ -220,7 +259,7 @@ namespace Yoimiya.TestUtils
 
             // Test 4: Stress test
             Console.WriteLine("[4/4] Testing high-constraint proof...");
-            var stressTest = TestSimpleProof(5000, new byte[] { 1, 2, 3, 4 });
+            var stressTest = TestSimpleProof(5000, DefaultWitness(5000));
 
             // Print summary
             PrintSummary();
@@ -260,14 +299,24 @@ namespace Yoimiya.TestUtils
                 if (testName == "simple_proof")
                 {
                     Console.WriteLine($"{status} {testName.PadEnd(20)} | Constraints: {result.Constraints.ToString().PadEnd(6)} | " +
-                        $"Prove: {result.ProveMs}ms | Verify: {result.VerifyMs}ms");
+                        $"Prove: {result.ProveMs}ms | Verify: {result.VerifyMs}ms | Proof: {result.ProofBytes} bytes | Peak RSS: {result.PeakRssMb} MB");
                 }
                 else if (testName == "batch_aggregation")
                 {
                     Console.WriteLine($"{status} {testName.PadEnd(20)} | Proofs: {result.NumProofs.ToString().PadEnd(6)} | " +
-                        $"Aggregate: {result.AggregateMs}ms | Verify: {result.BatchVerifyMs}ms");
+                        $"Aggregate: {result.AggregateMs}ms | Verify: {result.BatchVerifyMs}ms | Calldata: {result.BatchBytes} bytes | Peak RSS: {result.PeakRssMb} MB");
                 }
             }
+        }
+
+        private static byte[] DefaultWitness(int numConstraints)
+        {
+            return Enumerable.Repeat((byte)1, numConstraints + 1).ToArray();
+        }
+
+        private static ulong[] ToUlongWitness(byte[] witness)
+        {
+            return witness.Select(value => (ulong)value).ToArray();
         }
     }
 
@@ -285,6 +334,12 @@ namespace Yoimiya.TestUtils
         public double VerifyMs { get; set; }
         public double AggregateMs { get; set; }
         public double BatchVerifyMs { get; set; }
+        public int ProofBytes { get; set; }
+        public int BatchBytes { get; set; }
+        public long PeakRssBytes { get; set; }
+        public double PeakRssMb { get; set; }
+        public long PeakRssDeltaBytes { get; set; }
+        public double PeakRssDeltaMb { get; set; }
         public bool ProofValid { get; set; }
         public bool BatchValid { get; set; }
         public string Error { get; set; }
@@ -315,7 +370,7 @@ namespace Yoimiya.TestUtils
             if (result.Status == "PASSED")
             {
                 Console.WriteLine($"✓ SDK is working! Proof generation: {result.ProveMs}ms, " +
-                    $"Verification: {result.VerifyMs}ms");
+                    $"Verification: {result.VerifyMs}ms, Proof: {result.ProofBytes} bytes, Peak RSS: {result.PeakRssMb} MB");
             }
             else
             {

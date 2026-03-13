@@ -135,25 +135,28 @@ Expected output: `proof_ptr_is_null=False`
 
 ### 📈 Benchmark Commands (100 → 1,000,000 constraints)
 
-Run this from the SDK root to benchmark prove/verify across small to very large circuits:
+Run this from the SDK root to benchmark the full telemetry set across small to very large circuits:
 
 ```bash
-python -c "import sys,time; sys.path.insert(0,'bindings/python'); import yoimiya as y; sizes=[100,500,1000,2000,10000,50000,100000,250000,500000,1000000]; print('constraints,prove_ms,verify_ms,ok,proof_bytes');
-for n in sizes:
-  w=[1]*(n+1)
-  t=time.perf_counter(); p=y.prove_test_precompiled(n,w); prove=(time.perf_counter()-t)*1000
-  t=time.perf_counter(); ok=p.verify_precompiled(); verify=(time.perf_counter()-t)*1000
-  print(f'{n},{prove:.2f},{verify:.3f},{ok},{p.byte_size()}')"
+python benchmark_telemetry.py
 ```
 
-If you want fixed 1M telemetry (including peak memory), run:
+Default output columns:
+- `constraints`
+- `prove_ms`
+- `verify_ms`
+- `proof_bytes`
+- `peak_rss_mb`
+- `valid`
+
+Example: fixed 1M-only telemetry
 
 ```bash
-python test_1m_only.py
+python benchmark_telemetry.py --sizes 1000000
 ```
 
 Tip: The first touch of a new precompiled SRS tier can include one-time setup cost.
-For stable numbers, run the benchmark command once as warmup, then run it again for measured timings.
+`benchmark_telemetry.py` performs a default warmup pass automatically. Use `--no-warmup` if you want cold-start measurements.
 
 ---
 

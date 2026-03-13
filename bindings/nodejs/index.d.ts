@@ -28,6 +28,11 @@ export class Proof {
    * @returns true if valid, false otherwise
    */
   verify(srs: Srs): boolean;
+
+  /**
+   * Return compressed serialized proof size in bytes
+   */
+  byteSize(): number;
   
   /**
    * Free the proof resources
@@ -45,6 +50,11 @@ export class BatchProof {
    * @returns true if valid, false otherwise
    */
   verify(srs: Srs): boolean;
+
+  /**
+   * Serialize this batch proof to calldata bytes
+   */
+  toCalldata(): Buffer;
   
   /**
    * Free the batch proof resources

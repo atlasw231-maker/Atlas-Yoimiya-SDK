@@ -59,6 +59,9 @@ namespace Yoimiya.SDK
         
         [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void yoimiya_free_proof(IntPtr proof);
+
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int yoimiya_proof_size_bytes(IntPtr proof);
         
         /// <summary>Verification</summary>
         [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
@@ -77,6 +80,9 @@ namespace Yoimiya.SDK
         
         [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int yoimiya_verify_batch(IntPtr batchProof, IntPtr srs);
+
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int yoimiya_batch_to_calldata(IntPtr batchProof, byte[] output, uint outputLen);
     }
     
     /// <summary>
@@ -165,6 +171,27 @@ namespace Yoimiya.SDK
                 throw new InvalidOperationException("Verification error");
             return result == 1;
         }
+
+        public int ByteSize()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(Proof));
+
+            int size = YoimiyaNative.yoimiya_proof_size_bytes(_handle);
+            if (size < 0)
+                throw new InvalidOperationException("Failed to get proof byte size");
+            return size;
+        }
+
+        internal IntPtr Handle
+        {
+            get
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(Proof));
+                return _handle;
+            }
+        }
         
         public void Dispose()
         {
@@ -218,6 +245,23 @@ namespace Yoimiya.SDK
                 throw new InvalidOperationException("Batch verification error");
             return result == 1;
         }
+
+        public byte[] ToCalldata()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(BatchProof));
+
+            byte[] buffer = new byte[275];
+            int written = YoimiyaNative.yoimiya_batch_to_calldata(_handle, buffer, (uint)buffer.Length);
+            if (written < 0)
+                throw new InvalidOperationException("Failed to serialize batch proof");
+            if (written == buffer.Length)
+                return buffer;
+
+            byte[] result = new byte[written];
+            Array.Copy(buffer, result, written);
+            return result;
+        }
         
         public void Dispose()
         {
@@ -261,6 +305,8 @@ namespace Yoimiya.SDK
                 throw new ArgumentNullException(nameof(srs));
             if (witness == null)
                 throw new ArgumentNullException(nameof(witness));
+            if (witness.Length < (numConstraints + 1))
+                throw new ArgumentException($"witness too short: got {witness.Length}, need at least {numConstraints + 1} for numConstraints={numConstraints}", nameof(witness));
             
             IntPtr proofHandle = YoimiyaNative.yoimiya_prove_test(
                 numConstraints,
@@ -313,8 +359,7 @@ namespace Yoimiya.SDK
             IntPtr[] proofHandles = new IntPtr[proofs.Count];
             for (int i = 0; i < proofs.Count; i++)
             {
-                // Extract handle (would need accessor in Proof class)
-                proofHandles[i] = IntPtr.Zero; // Placeholder
+                proofHandles[i] = proofs[i].Handle;
             }
             
             IntPtr batchHandle = YoimiyaNative.yoimiya_aggregate(
