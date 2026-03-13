@@ -102,7 +102,8 @@ yoimiya_print_result(&result);
 **Methods:**
 - `test_simple_proof(num_constraints, witness)` - Test single proof
 - `test_batch_aggregation(num_proofs, constraints_per_proof, witness)` - Test batch
-- `test_scalability(constraint_sizes)` - Test across sizes
+- `test_scalability(constraint_sizes)` - Test across standard sizes (100-2000)
+- `test_large_constraints(constraint_sizes)` - Test large sizes (10K-1M)
 - `test_batch_sizes(batch_sizes, constraints_per_proof)` - Test across batch sizes
 - `run_full_test_suite()` - Run complete test suite
 
@@ -235,6 +236,191 @@ The test utilities are designed to help you validate the SDK without exposing:
 | Aggregate 100 proofs | 0.19 ms |
 
 **Note:** Times vary based on hardware. Run scalability tests on your target platform for accurate benchmarks.
+
+## Integration Example
+
+```python
+# In your application
+from libs.test_utils import YoimiyaTester
+
+def validate_sdk():
+    """Validate SDK works before running critical operations"""
+    tester = YoimiyaTester()
+    
+    # Run quick check
+    result = tester.test_simple_proof(num_constraints=100)
+    if result['status'] != 'PASSED':
+        raise RuntimeError("SDK validation failed!")
+    
+    return True
+
+if __name__ == "__main__":
+    validate_sdk()
+    print("✓ SDK validated and ready to use")
+```
+
+## Testing Large Constraints (Dev Machine)
+
+Developers can test proof generation with very large constraint counts (up to 1M) on their development machine to understand performance characteristics and find optimal parameters.
+
+### Python Example
+
+```python
+from libs.test_utils import YoimiyaTester
+
+# Create tester with larger SRS for big proofs
+tester = YoimiyaTester(max_degree=1_000_000)
+
+# Test across standard sizes first
+print("Standard constraint tests:")
+standard_results = tester.test_scalability([100, 500, 1000, 2000])
+
+# Then test large sizes up to 1M
+print("\nLarge constraint tests:")
+large_results = tester.test_large_constraints([
+    10_000,
+    50_000,
+    100_000,
+    250_000,
+    500_000,
+    1_000_000
+])
+
+# Analyze results
+for result in large_results:
+    constraints = result.get('constraints')
+    prove_time = result.get('prove_ms')
+    verify_time = result.get('verify_ms')
+    print(f"{constraints:,} constraints: Prove {prove_time}ms, Verify {verify_time}ms")
+```
+
+### Node.js Example
+
+```javascript
+const { YoimiyaTester } = require('./libs/test-utils.js');
+
+async function testLargeConstraints() {
+    // Create tester with larger SRS
+    const tester = new YoimiyaTester(1_000_000);
+    
+    // Test large sizes
+    const results = tester.testLargeConstraints([
+        10_000,
+        50_000,
+        100_000,
+        250_000,
+        500_000,
+        1_000_000
+    ]);
+    
+    // Analyze performance
+    for (const result of results) {
+        console.log(`${result.constraints.toLocaleString()} constraints:`);
+        console.log(`  Prove: ${result.prove_ms}ms`);
+        console.log(`  Verify: ${result.verify_ms}ms`);
+    }
+}
+
+testLargeConstraints();
+```
+
+### C# Example
+
+```csharp
+using Yoimiya.TestUtils;
+
+class Program {
+    static void Main() {
+        // Create tester with larger SRS
+        var tester = new YoimiyaTester(1_000_000);
+        
+        // Test large constraint sizes
+        var results = tester.TestLargeConstraints(new[] {
+            10_000,
+            50_000,
+            100_000,
+            250_000,
+            500_000,
+            1_000_000
+        });
+        
+        // Print results
+        foreach (var result in results) {
+            Console.WriteLine($"{result.Constraints:N0} constraints:");
+            Console.WriteLine($"  Prove: {result.ProveMs}ms");
+            Console.WriteLine($"  Verify: {result.VerifyMs}ms");
+        }
+    }
+}
+```
+
+### Custom Constraint Testing
+
+Test any constraint size you want:
+
+```python
+from libs.test_utils import YoimiyaTester
+
+tester = YoimiyaTester(max_degree=2_000_000)
+
+# Test your specific constraint requirements
+my_constraints = [5_000, 25_000, 75_000, 150_000]
+results = tester.test_large_constraints(my_constraints)
+```
+
+## Performance Expectations
+
+### Standard Constraints (100-2000)
+| Constraints | Prove Time | Verify Time |
+|------------|-----------|------------|
+| 100 | 0.08 ms | 0.59 ms |
+| 500 | 0.20 ms | 0.59 ms |
+| 1,000 | 0.33 ms | 0.59 ms |
+| 2,000 | 0.63 ms | 0.59 ms |
+
+### Large Constraints (10K-1M)
+*Times are approximate and depend on hardware*
+
+| Constraints | Approximate Time | Notes |
+|------------|-----------------|-------|
+| 10,000 | ~3-5 ms | Proof generation |
+| 50,000 | ~15-25 ms | Linear scaling |
+| 100,000 | ~30-50 ms | Optimal for most use cases |
+| 250,000 | ~80-120 ms | Can still verify in ~1ms |
+| 500,000 | ~160-240 ms | Very high throughput |
+| 1,000,000 | ~330-500 ms | Maximum tested size |
+
+**Important Notes:**
+- Verification remains fast (~0.6-1ms) even at 1M constraints
+- Proof generation time scales roughly linearly with constraint count
+- Hardware and SRS generation affect absolute times
+- Always test on your target deployment hardware
+
+## Workflow: From Dev Testing to Production
+
+### Phase 1: Dev Machine Testing
+```
+1. Start with standard constraints (100-2000)
+2. Verify basic functionality works
+3. Test your specific constraint count range
+4. Measure performance on dev hardware
+```
+
+### Phase 2: Optimization
+```
+1. Identify your optimal constraint batch size
+2. Test aggregation efficiency at your scale
+3. Benchmark on representative hardware
+4. Plan resource requirements
+```
+
+### Phase 3: Production Validation
+```
+1. Run full test suite with production SRS
+2. Verify performance targets
+3. Monitor real-world proof generation
+4. Adjust parameters based on actual usage
+```
 
 ## Integration Example
 

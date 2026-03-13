@@ -145,6 +145,38 @@ class YoimiyaTester:
         
         return results
     
+    def test_large_constraints(self, constraint_sizes=None):
+        """
+        Test proof generation with large constraint counts (up to 1M)
+        
+        Useful for developers to understand performance at scale and identify
+        optimal parameters for their use case.
+        
+        Args:
+            constraint_sizes: List of large constraint counts to test
+                            (default: [10K, 50K, 100K, 250K, 500K, 1M])
+        
+        Returns:
+            list: Test results for each size
+        """
+        if constraint_sizes is None:
+            constraint_sizes = [10_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
+        
+        print("\nTesting Large Constraint Sizes (up to 1M)...")
+        print("-" * 60)
+        
+        results = []
+        for size in constraint_sizes:
+            print(f"  Testing {size:,} constraints...", end=" ", flush=True)
+            result = self.test_simple_proof(num_constraints=size, witness=[1, 2, 3, 4])
+            if result.get("status") == "PASSED":
+                print(f"✓ Prove: {result.get('prove_ms')}ms, Verify: {result.get('verify_ms')}ms")
+            else:
+                print(f"✗ Failed: {result.get('error', 'Unknown error')}")
+            results.append(result)
+        
+        return results
+    
     def test_batch_sizes(self, batch_sizes=None, constraints_per_proof=100):
         """
         Test aggregation with different batch sizes

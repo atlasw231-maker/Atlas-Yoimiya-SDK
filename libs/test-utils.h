@@ -87,6 +87,23 @@ int yoimiya_test_scalability(
 );
 
 /**
+ * @brief Test with large constraint counts (up to 1M)
+ * 
+ * Useful for developers to understand proof generation performance at scale
+ * and identify optimal parameters for their use case.
+ * 
+ * @param srs Structured Reference String
+ * @param results Output array for results
+ * @param num_tests Number of tests to run (recommended: 6 for 10K-1M range)
+ * @return Number of tests completed
+ */
+int yoimiya_test_large_constraints(
+    YoimiyaSrs* srs,
+    YoimiyaTestResult* results,
+    int num_tests
+);
+
+/**
  * @brief Test batch aggregation with different batch sizes
  * 
  * @param srs Structured Reference String

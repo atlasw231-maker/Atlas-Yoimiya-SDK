@@ -145,6 +145,40 @@ namespace Yoimiya.TestUtils
         }
 
         /// <summary>
+        /// Test proof generation with large constraint counts (up to 1M)
+        /// Useful for developers to understand performance at scale and identify
+        /// optimal parameters for their use case.
+        /// </summary>
+        public List<TestResult> TestLargeConstraints(int[] constraintSizes = null)
+        {
+            if (constraintSizes == null)
+            {
+                constraintSizes = new[] { 10_000, 50_000, 100_000, 250_000, 500_000, 1_000_000 };
+            }
+
+            Console.WriteLine("\nTesting Large Constraint Sizes (up to 1M)...");
+            Console.WriteLine(new string('-', 60));
+
+            var results = new List<TestResult>();
+            foreach (var size in constraintSizes)
+            {
+                Console.Write($"  Testing {size:N0} constraints... ");
+                var result = TestSimpleProof(size, new byte[] { 1, 2, 3, 4 });
+                if (result.Status == "PASSED")
+                {
+                    Console.WriteLine($"✓ Prove: {result.ProveMs}ms, Verify: {result.VerifyMs}ms");
+                }
+                else
+                {
+                    Console.WriteLine($"✗ Failed: {result.Error ?? "Unknown error"}");
+                }
+                results.Add(result);
+            }
+
+            return results;
+        }
+
+        /// <summary>
         /// Test aggregation with different batch sizes
         /// </summary>
         public List<TestResult> TestBatchSizes(int[] batchSizes = null, int constraintsPerProof = 100)

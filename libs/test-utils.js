@@ -130,6 +130,35 @@ class YoimiyaTester {
     }
 
     /**
+     * Test proof generation with large constraint counts (up to 1M)
+     * Useful for developers to understand performance at scale
+     * @param {Array<number>} constraintSizes - List of large constraint counts
+     * @returns {Array<Object>} Test results for each size
+     */
+    testLargeConstraints(constraintSizes = null) {
+        if (!constraintSizes) {
+            constraintSizes = [10_000, 50_000, 100_000, 250_000, 500_000, 1_000_000];
+        }
+
+        console.log('\nTesting Large Constraint Sizes (up to 1M)...');
+        console.log('-'.repeat(60));
+
+        const results = [];
+        for (const size of constraintSizes) {
+            process.stdout.write(`  Testing ${size.toLocaleString()} constraints... `);
+            const result = this.testSimpleProof(size, [1n, 2n, 3n, 4n]);
+            if (result.status === 'PASSED') {
+                console.log(`✓ Prove: ${result.prove_ms}ms, Verify: ${result.verify_ms}ms`);
+            } else {
+                console.log(`✗ Failed: ${result.error || 'Unknown error'}`);
+            }
+            results.push(result);
+        }
+
+        return results;
+    }
+
+    /**
      * Test aggregation with different batch sizes
      * @param {Array<number>} batchSizes - List of batch sizes to test
      * @param {number} constraintsPerProof - Constraints per individual proof
