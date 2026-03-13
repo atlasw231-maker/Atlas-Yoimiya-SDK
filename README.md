@@ -38,34 +38,45 @@ Yoimiya SDK enables you to:
 
 ## 📦 Quick Start
 
-### ⚠️ Binary Status
+### ⚠️ Binaries Not Yet Available
 
-**Pre-compiled binaries are being built via GitHub Actions CI/CD.**
+**Pre-compiled binaries are building. They are not yet available for download.**
 
-See [docs/RELEASE_STATUS.md](docs/RELEASE_STATUS.md) for:
-- Current binary build status
-- Timeline for availability  
-- How to download when ready
-- Alternative options if needed
+**Your Options:**
 
-### Step 1: Download Binary SDK
+1. **Download SDK + Wait for Binaries**
+   - Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
+   - Download SDK ZIP/TAR
+   - Check back in ~30-60 minutes for binary assets
+   - Download binaries for your platform
+   - Extract binaries to `platforms/YOUR_PLATFORM/`
 
-1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
-2. Download SDK structure (source ZIP or clone repository)
-3. Once available, download platform-specific binary assets
-4. Extract binaries to `platforms/YOUR_PLATFORM/`
+2. **Build Binaries Now (If You Need Testing Immediately)**
+   - Build from source: `git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git && cd Yoimiya-SDK && cargo build --release`
+   - Copy binaries to your SDK: `cp target/release/libyoimiya.* platforms/YOUR_PLATFORM/`
+   - Then proceed with setup
 
-### Step 2: Extract the SDK
+**For complete details, See [docs/RELEASE_STATUS.md](docs/RELEASE_STATUS.md) and [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)**
 
-```bash
-# Unix-like systems
-tar -xzf yoimiya-sdk-v0.1.0.tar.gz
+---
 
-# Windows
-Expand-Archive yoimiya-sdk-v0.1.0.zip
-```
+## ⏱️ Timeline
 
-3. **See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for complete setup and testing guide**
+| Status | Timing |
+|--------|--------|
+| SDK Structure | ✅ Ready now |
+| Bindings & Tests | ✅ Ready now |
+| Documentation | ✅ Ready now |
+| Binaries | ⏳ ~30-60 min from now |
+
+---
+
+## 📋 Quick Links
+
+- **Check Binary Status:** [docs/RELEASE_STATUS.md](docs/RELEASE_STATUS.md)
+- **Setup Guide:** [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
+- **GitHub Actions:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
+- **Releases:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
 
 ### Structure
 
