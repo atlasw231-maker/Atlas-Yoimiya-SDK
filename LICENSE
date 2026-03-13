@@ -1,0 +1,146 @@
+Business Source License 1.1
+
+License text copyright (c) 2025 MariaDB Corporation Ab, All Rights Reserved.
+"Business Source License" is a trademark of MariaDB Corporation Ab.
+
+Parameters
+
+Licensor:             Yoimiya / Atlas
+Licensed Work:        Yoimiya ZK Proving SDK
+                      The Licensed Work is (c) 2025 Yoimiya / Atlas
+Additional Use Grant: You may use the Licensed Work for non-production
+                      purposes, evaluation, and development. Production
+                      use requires a commercial license from the Licensor.
+Change Date:          Four years from the date the Licensed Work is published.
+Change License:       Apache License, Version 2.0
+
+For information about alternative licensing arrangements for the Licensed Work,
+please contact: atlasw231@gmail.com
+
+Notice
+
+The Business Source License (this document, or the "License") is not an Open
+Source license. However, the Licensed Work will eventually be made available
+under an Open Source License, as stated in this License.
+
+License text
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work. The
+Licensor may make an Additional Use Grant, above, permitting limited
+production use.
+
+Effective on the Change Date, or the fourth anniversary of the first publicly
+available distribution of a specific version of the Licensed Work under this
+License, whichever comes first, the Licensor hereby grants you rights under
+the terms of the Change License, and the rights granted in the paragraph
+above terminate.
+
+If your use of the Licensed Work does not comply with the requirements
+currently in effect as described in this License, you must purchase a
+commercial license from the Licensor, its affiliated entities, or authorized
+resellers, or you must refrain from using the Licensed Work.
+
+All copies of the original and modified Licensed Work, and derivative works
+of the Licensed Work, are subject to this License. This License applies
+separately for each version of the Licensed Work and the Change Date may vary
+for each version of the Licensed Work released by Licensor.
+
+You must conspicuously display this License on each original or modified copy
+of the Licensed Work. If you receive the Licensed Work in original or
+modified form from the Licensor, it will always be governed by the terms of
+this License for that version of the Licensed Work. You may use the Licensed
+Work pursuant to this License unless and until the Licensed Work is made
+available under the Change License.
+
+If you distribute copies of the Licensed Work or derivative works thereof, you
+must make a reasonable effort under the circumstances to obtain the express
+prior written permission of Licensor to distribute the Licensed Work, and the
+Licensed Work must include a conspicuous statement that the original or
+modified Licensed Work, including derivative works thereof, is subject to the
+terms of this License.
+
+If the Licensed Work is a library, modification of the Licensed Work may be
+permitted provided that you do not charge for use of the modified Licensed
+Work and you release the source code under the terms of this License.
+
+You may condition simple alterations to preserve a program or Library for use
+within your organization, and that use does not constitute distribution. The
+following restrictions apply to distribution of a modified file or derivative
+work:
+
+a. You must cause the modified files to carry prominent notices stating that
+you changed the files and the date of any change.
+
+b. You must cause any work that you distribute or publish, that in whole or in
+part contains or is derived from the Licensed Work or any part thereof, to be
+licensed as a whole at no charge to all third parties under the terms of this
+License.
+
+c. If the Licensed Work normally reads commands interactively when run, you
+must cause it, when started running for such interactive use in the most
+ordinary way, to print or display an announcement including an appropriate
+copyright notice and a notice that there is no warranty (or else, saying that
+you provide a warranty) and that licensees may redistribute the program under
+these conditions, and telling the user how to view a copy of this License.
+(Exception: if the Licensed Work is a Library, the output need only state
+that there is no warranty and that licensees may redistribute under these
+conditions, with reference having been made to this License.)
+
+These requirements apply to the modified work as a whole. If identifiable
+sections of that work are not derived from the Licensed Work, and can be
+reasonably considered independent and separate works in themselves, then this
+License, and its terms, do not apply to those sections when you form a whole
+work with them and distribute or publish the whole as a separate whole. But
+when you distribute the same sections as part of a whole which is a work based
+on the Licensed Work, the distribution of the whole must be on the terms of
+this License, whose permissions for other licensees extend to the entire whole,
+and thus to each and every part regardless of who wrote it.
+
+Thus, it is not the intent of this section to claim rights or contest your
+rights to work written entirely by you; rather, the intent is to exercise the
+right to control the distribution of derivative or collective works based on
+the Licensed Work.
+
+In addition, mere aggregation of another work not based on the Licensed Work
+with the Licensed Work (or with a work based on the Licensed Work) on a volume
+of a storage or distribution medium does not bring the other work under the
+scope of this License.
+
+DISCLAIMER OF WARRANTY
+
+THE LICENSED WORK IS PROVIDED UNDER THIS LICENSE ON AN "AS-IS" BASIS, WITHOUT
+WARRANTY OF ANY KIND, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE,
+INCLUDING WITHOUT LIMITATION, WARRANTIES THAT THE LICENSED WORK IS FREE OF
+DEFECTS, MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE OR NON-INFRINGING. NO
+COMPENSATION FOR LOSS OF REVENUES OR PROFITS, NO OR SUBSTITUTE GOODS OR
+SERVICES, OR OTHER SIMILAR DAMAGES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGES.
+
+THE LICENSOR SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, OR
+CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH THIS LICENSE OR
+THE USE OR INABILITY TO USE THE LICENSED WORK, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+The limitations of liability set out above shall not apply to liability to the
+extent it cannot be excluded or limited by applicable law.
+
+Licensor's Liability Cap
+
+If the Licensor is (a) an individual, the total liability of Licensor under
+this License shall not exceed the sum of all Fees paid by you for the Licensed
+Work over the past three (3) years, or US$1,000,000, whichever is greater. If
+the Licensor is (b) a legal entity, the liability of Licensor shall not exceed
+the greatest of: (i) the sum of all Fees paid by you for the Licensed Work
+over the past three (3) years, (ii) US$5,000,000, or (iii) 50% of annual
+revenues of the Licensor in the last fiscal year, whichever is greatest.
+
+Other Provisions
+
+If any provision of this License is held to be invalid or unenforceable, such
+provision shall be reformed only to the minimum extent necessary to make it
+valid and enforceable. If a party bound by this License breaks a provision of
+this License, it may be subject to prosecution under applicable law.
+
+For questions or inquiries regarding this License:
+Email: atlasw231@gmail.com
