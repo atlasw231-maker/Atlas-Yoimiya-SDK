@@ -339,26 +339,29 @@ def generate_test_srs(max_degree: int) -> Srs:
 
 def prove_test(
     num_constraints: int,
-    witness: List[int],
-    srs: Srs
+    witness: List[int] = None,
+    srs: Srs = None,
 ) -> Proof:
     """
     Prove a test circuit.
     
     Args:
         num_constraints: Number of R1CS constraints.
-        witness: List of witness values (u64).
-                 Must satisfy len(witness) >= num_constraints + 1.
+        witness: Optional list of witness values (u64).
+                 Auto-padded with 1s to num_constraints+1 if too short.
+                 Defaults to [1]*(num_constraints+1) if omitted.
         srs: Structured Reference String.
     
     Returns:
         Proof object.
     """
-    if len(witness) < (num_constraints + 1):
-        raise ValueError(
-            f"witness too short: got {len(witness)}, need at least {num_constraints + 1} "
-            f"for num_constraints={num_constraints}"
-        )
+    if srs is None:
+        raise ValueError("srs is required")
+    required = num_constraints + 1
+    if witness is None:
+        witness = [1] * required
+    elif len(witness) < required:
+        witness = list(witness) + [1] * (required - len(witness))
 
     witness_array = (ctypes.c_uint64 * len(witness))(*witness)
     proof_handle = _lib.yoimiya_prove_test(
@@ -374,19 +377,19 @@ def prove_test(
 
 def prove_test_precompiled(
     num_constraints: int,
-    witness: List[int],
+    witness: List[int] = None,
 ) -> Proof:
     """
     Prove a test circuit using bundled precompiled SRS.
 
     No explicit SRS handle is required.
-    witness must satisfy len(witness) >= num_constraints + 1.
+    Witness auto-padded with 1s if too short or omitted.
     """
-    if len(witness) < (num_constraints + 1):
-        raise ValueError(
-            f"witness too short: got {len(witness)}, need at least {num_constraints + 1} "
-            f"for num_constraints={num_constraints}"
-        )
+    required = num_constraints + 1
+    if witness is None:
+        witness = [1] * required
+    elif len(witness) < required:
+        witness = list(witness) + [1] * (required - len(witness))
 
     witness_array = (ctypes.c_uint64 * len(witness))(*witness)
     proof_handle = _lib.yoimiya_prove_test_precompiled(

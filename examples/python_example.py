@@ -34,17 +34,18 @@ def main():
     srs = generate_test_srs(max_degree=2048)
     print("  ✓ SRS generated successfully\n")
     
-    # Step 2: Create witness
+    # Step 2: Create witness (or omit — auto-padded for test circuits)
     print("Step 2: Creating witness...")
-    witness = [random.randint(0, 1000) for _ in range(100)]
+    num_constraints = 500
+    witness = [random.randint(0, 1000) for _ in range(num_constraints + 1)]
     print(f"  ✓ Witness created ({len(witness)} elements)\n")
     
     # Step 3: Prove
-    print("Step 3: Proving circuit (constraints=500)...")
+    print(f"Step 3: Proving circuit (constraints={num_constraints})...")
     start = time.time()
     
     proof = prove_test(
-        num_constraints=500,
+        num_constraints=num_constraints,
         witness=witness,
         srs=srs
     )

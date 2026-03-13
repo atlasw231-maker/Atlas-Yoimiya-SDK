@@ -25,12 +25,10 @@ def example_basic_proof():
     srs = generate_test_srs(max_degree=2048)
     print("✓ Generated SRS with max degree 2048")
     
-    # Generate a proof
-    witness = [1, 2, 3, 4]
+    # Generate a proof (witness is auto-padded for test circuits)
     num_constraints = 500
     proof = prove_test(
         num_constraints=num_constraints,
-        witness=witness,
         srs=srs
     )
     print(f"✓ Generated proof for {num_constraints} constraints")
@@ -53,12 +51,10 @@ def example_large_proof():
     srs = generate_test_srs(max_degree=1_000_000)
     print("✓ Generated SRS with max degree 1M")
     
-    # Generate large proof
+    # Generate large proof (witness auto-padded)
     print("Generating proof for 1,000,000 constraints...")
-    witness = [1, 2, 3, 4]
     proof = prove_test(
         num_constraints=1_000_000,
-        witness=witness,
         srs=srs
     )
     print("✓ Generated proof")
@@ -83,13 +79,11 @@ def example_batch_aggregation():
     # Generate multiple proofs
     num_proofs = 5
     proofs = []
-    witness = [1, 2, 3, 4]
     
     print(f"Generating {num_proofs} proofs...")
     for i in range(num_proofs):
         proof = prove_test(
             num_constraints=1000,
-            witness=witness,
             srs=srs
         )
         proofs.append(proof)
@@ -115,20 +109,19 @@ def example_custom_witness():
     
     srs = generate_test_srs(max_degree=2048)
     
-    # Example 1: Simple witness
+    # Example 1: Simple witness (auto-padded to required size)
     witness1 = [1, 2, 3, 4]
     proof1 = prove_test(100, witness1, srs)
-    print(f"✓ Proof with witness {witness1}: {proof1.verify(srs)}")
+    print(f"✓ Proof with seed witness {witness1}: {proof1.verify(srs)}")
     
     # Example 2: Larger witness
     witness2 = [10, 20, 30, 40, 50, 60, 70, 80]
     proof2 = prove_test(500, witness2, srs)
-    print(f"✓ Proof with witness {witness2}: {proof2.verify(srs)}")
+    print(f"✓ Proof with seed witness {witness2}: {proof2.verify(srs)}")
     
-    # Example 3: Real-world example (could be transaction data)
-    witness3 = [0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0xABCDEF00]
-    proof3 = prove_test(1000, witness3, srs)
-    print(f"✓ Proof with witness [0xDEADBEEF, ...]: {proof3.verify(srs)}")
+    # Example 3: No witness (fully auto-generated)
+    proof3 = prove_test(1000, srs=srs)
+    print(f"✓ Proof with default witness: {proof3.verify(srs)}")
 
 
 def example_performance_tracking():
@@ -150,7 +143,7 @@ def example_performance_tracking():
         
         # Measure proof generation
         start = time.perf_counter()
-        proof = prove_test(size, [1, 2, 3, 4], srs)
+        proof = prove_test(size, srs=srs)
         prove_time = (time.perf_counter() - start) * 1000
         
         # Measure verification
