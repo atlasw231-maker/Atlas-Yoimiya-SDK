@@ -1,0 +1,21 @@
+# Local runtime and benchmark artifacts
+bindings/python/__pycache__/
+bindings/python/yoimiya.dll
+
+# Local downloaded/upload staging artifacts
+ci-artifacts/
+release-assets/
+yoimiya-sdk-v*.zip
+
+# Local copied platform binaries (release assets are published via GitHub Releases)
+platforms/windows-x86_64/yoimiya.dll
+platforms/android-armv8/libyoimiya.so
+platforms/android-armv8/libyoimiya.a
+platforms/android-armv8/yoimiya-android-armv8.so
+platforms/android-armv8/yoimiya-android-armv8.a
+
+# Local benchmark script output file
+benchmark_100_to_1m.csv
+
+# Local ad-hoc benchmark script
+test_1m_only.py
