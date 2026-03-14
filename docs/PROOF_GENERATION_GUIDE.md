@@ -191,28 +191,37 @@ for n_constraints in [100, 500, 1000, 5000, 10000]:
 
 ## Performance Baselines
 
-### Reference Hardware Results
+### Reference Hardware Results (March 2026)
 
-| Constraints | Prove Time | Verify Time | Notes |
-|-------------|-----------|------------|-------|
-| 100 | 0.08 ms | 0.59 ms | Minimal |
-| 500 | 0.20 ms | 0.59 ms | Quick |
-| 1,000 | 0.33 ms | 0.59 ms | Standard |
-| 2,000 | 0.63 ms | 0.59 ms | Moderate |
-| 10,000 | ~3-5 ms | ~1 ms | Significant |
-| 50,000 | ~15-25 ms | ~1 ms | Complex |
-| 100,000 | ~30-50 ms | ~1 ms | Very complex |
-| 250,000 | ~80-120 ms | ~1 ms | High complexity |
-| 500,000 | ~160-240 ms | ~1 ms | Extreme |
-| 1,000,000 | ~330-500 ms | ~1 ms | Maximum |
+| Constraints | Prove Time | Verify Time | Peak RAM | Valid |
+|-------------|-----------|------------|----------|-------|
+| 100 | 0.25 ms | 0.72 ms | 24.3 MB | ✓ |
+| 500 | 0.58 ms | 0.72 ms | 24.6 MB | ✓ |
+| 1,000 | 1.09 ms | 0.70 ms | 24.8 MB | ✓ |
+| 2,000 | 1.63 ms | 0.82 ms | 25.1 MB | ✓ |
+| 10,000 | 8.36 ms | 0.74 ms | 31.7 MB | ✓ |
+| 50,000 | 54.99 ms | 0.72 ms | 53.9 MB | ✓ |
+| 100,000 | 96.47 ms | 0.71 ms | 153.6 MB | ✓ |
+| 250,000 | 335.53 ms | 0.72 ms | 236.1 MB | ✓ |
+| 500,000 | 708.87 ms | 0.71 ms | 368.6 MB | ✓ |
+| 1,000,000 | 1533.42 ms | 0.71 ms | 631.2 MB | ✓ |
 
-**Important:** Times vary based on:
+**Notes:**
+- Times measured using precompiled SRS (3 iterations, averaging steady-state performance)
+- First iteration may be slower due to cache warming
+- Verify time is ~0.7ms regardless of constraint count (thanks to KZG batch checking)
+- Memory based on peak usage during proving
+- Tested on reference hardware (March 14, 2026)
+
+**Important:** Times vary significantly based on:
 - CPU architecture and speed
-- System load
-- Available memory
-- SRS pre-computation caching
+- System load and background processes
+- Available memory bandwidth
+- SRS caching and pre-computation
 
-Always test on your target deployment environment.
+Always benchmark on your target deployment environment.
+
+**Rule of thumb:** Proving time scales roughly **O(n log n)** with constraint count.
 
 ---
 
