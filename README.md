@@ -2,28 +2,6 @@
 
 **Production-ready Zero-Knowledge Proving SDK with multi-platform binaries and language bindings.**
 
-## 🎯 What It Does
-
-Yoimiya SDK enables you to:
-
-- **Generate cryptographic proofs** that verify computational claims without revealing the underlying data
-- **Verify proofs efficiently** with minimal computational overhead
-- **Aggregate multiple proofs** into single proofs for scalable verification
-- **Integrate ZK proving** into applications across platforms: Web, Mobile, Cloud, and Edge
-
-## 🔧 Problems It Solves
-
-| Problem | Solution |
-|---------|----------|
-| **Scalability** | Aggregate thousands of proofs into one, reducing on-chain verification cost |
-| **Privacy** | Prove correctness of computations without exposing sensitive data |
-| **Cross-Platform** | Use the same proving engine across Windows, Linux, macOS, Android, iOS |
-| **Language Flexibility** | Integrate via Python, Node.js, C#, or C—pick your stack |
-| **Performance** | Sub-millisecond proof generation and verification |
-| **Accessibility** | Pre-compiled binaries—no build infrastructure needed |
-
-## 🌍 Platform & Language Support
-
 | Platform | Status | Architecture |
 |----------|--------|--------------|
 | **Windows** | ✅ | x86_64 |
@@ -38,134 +16,15 @@ Yoimiya SDK enables you to:
 
 ## 📦 Quick Start
 
-### ✅ Release Assets Are Available
-
-Download from: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
-
-Required binary per platform:
-
-| Platform | Binary Asset |
-|----------|--------------|
-| Windows x86_64 | `yoimiya-windows-x86_64.dll` |
-| Linux x86_64 | `libyoimiya-linux-x86_64.so` |
-| macOS x86_64 | `libyoimiya-macos-x86_64.dylib` |
-| macOS ARM64 | `libyoimiya-macos-aarch64.dylib` |
-| Android ARMv8 | `libyoimiya-android-armv8.so` |
-| iOS ARM64 | `libyoimiya-ios-arm64.a` |
-
-Place the binary in `platforms/<your-platform>/` (or `bindings/python/` for quick Python testing).
-
-### ✅ Must-Pass Validation Checklist (All Devs)
-
-Before writing app code, run this checklist exactly once:
-
-1. Download the binary that matches your OS + architecture from the release page.
-2. Ensure the filename includes your platform explicitly (for example `linux-x86_64`, `macos-aarch64`, `android-armv8`).
-3. Verify architecture locally:
-  - Linux: `file libyoimiya-linux-x86_64.so`
-  - macOS: `file libyoimiya-macos-x86_64.dylib` or `file libyoimiya-macos-aarch64.dylib`
-4. Place the file into `platforms/<your-platform>/`.
-5. Run the Python smoke test below and confirm:
-  - `valid=True`
-  - `bytes=164`
-6. If using `yoimiya_prove_test(...)` (manual SRS), ensure witness length is always `num_constraints + 1`.
-
-If any step fails, see the Troubleshooting section in this README first.
-
-### ⚡ 5-Minute Device Test (Python)
+### Extract the SDK
 
 ```bash
-cd bindings/python
-python -c "import yoimiya; n=1000; w=[1]*(n+1); p=yoimiya.prove_test_precompiled(n,w); print('valid=', p.verify_precompiled(), 'bytes=', p.byte_size())"
+# Unix-like systems
+tar -xzf yoimiya-sdk-v0.1.0.tar.gz
+
+# Windows
+unzip yoimiya-sdk-v0.1.0.zip
 ```
-
-Expected output:
-- `valid=True`
-- `bytes=164`
-
-Notes:
-- For `num_constraints = n`, witness length must be at least `n + 1`
-  (equivalently: `witness_len > n`).
-- `prove_test_precompiled(...)` uses bundled precompiled SRS automatically.
-
-### 🔍 C ABI Smoke Test (NULL Pointer Guard)
-
-Use this to quickly detect wrong binary selection or witness mismatch:
-
-```bash
-python - <<'PY'
-import ctypes
-
-lib = ctypes.CDLL('./platforms/linux-x86_64/libyoimiya-linux-x86_64.so')
-
-class YoimiyaSrs(ctypes.Structure):
-  pass
-
-class YoimiyaProof(ctypes.Structure):
-  pass
-
-lib.yoimiya_generate_test_srs.argtypes = [ctypes.c_uint32]
-lib.yoimiya_generate_test_srs.restype = ctypes.POINTER(YoimiyaSrs)
-
-lib.yoimiya_prove_test.argtypes = [
-  ctypes.c_uint32,
-  ctypes.POINTER(ctypes.c_uint64),
-  ctypes.c_uint32,
-  ctypes.POINTER(YoimiyaSrs),
-]
-lib.yoimiya_prove_test.restype = ctypes.POINTER(YoimiyaProof)
-
-lib.yoimiya_free_proof.argtypes = [ctypes.POINTER(YoimiyaProof)]
-lib.yoimiya_free_srs.argtypes = [ctypes.POINTER(YoimiyaSrs)]
-
-n = 1000
-srs = lib.yoimiya_generate_test_srs(n + 1)
-witness = (ctypes.c_uint64 * (n + 1))(*([1] * (n + 1)))
-proof = lib.yoimiya_prove_test(n, witness, n + 1, srs)
-
-print('proof_ptr_is_null=', not bool(proof))
-
-if proof:
-  lib.yoimiya_free_proof(proof)
-lib.yoimiya_free_srs(srs)
-PY
-```
-
-Expected output: `proof_ptr_is_null=False`
-
-### 📈 Benchmark Commands (100 → 1,000,000 constraints)
-
-Run this from the SDK root to benchmark the full telemetry set across small to very large circuits:
-
-```bash
-python benchmark_telemetry.py
-```
-
-Default output columns:
-- `constraints`
-- `prove_ms`
-- `verify_ms`
-- `proof_bytes`
-- `peak_rss_mb`
-- `valid`
-
-Example: fixed 1M-only telemetry
-
-```bash
-python benchmark_telemetry.py --sizes 1000000
-```
-
-Tip: The first touch of a new precompiled SRS tier can include one-time setup cost.
-`benchmark_telemetry.py` performs a default warmup pass automatically. Use `--no-warmup` if you want cold-start measurements.
-
----
-
-## 📋 Quick Links
-
-- **Check Binary Status:** [docs/RELEASE_STATUS.md](docs/RELEASE_STATUS.md)
-- **Setup Guide:** [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
-- **GitHub Actions:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
-- **Releases:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
 
 ### Structure
 
@@ -173,58 +32,19 @@ Tip: The first touch of a new precompiled SRS tier can include one-time setup co
 sdk/
 ├── platforms/          # Pre-built binaries for each platform
 │   ├── windows-x86_64/
-│   │   └── yoimiya-windows-x86_64.dll
 │   ├── linux-x86_64/
-│   │   └── libyoimiya-linux-x86_64.so
 │   ├── macos-x86_64/
-│   │   └── libyoimiya-macos-x86_64.dylib
 │   ├── macos-aarch64/
-│   │   └── libyoimiya-macos-aarch64.dylib
 │   ├── android-armv8/
-│   │   └── libyoimiya-android-armv8.so
 │   └── ios-arm64/
-│       └── libyoimiya-ios-arm64.a
 ├── include/            # C headers
 ├── bindings/           # Language-specific bindings
 │   ├── python/         # Python ctypes bindings
 │   ├── nodejs/         # Node.js FFI bindings
 │   └── csharp/         # C# P/Invoke bindings
-├── libs/               # Test utilities library
-│   ├── test-utils.py
-│   ├── test-utils.js
-│   └── test-utils.cs
 ├── examples/           # Complete working examples
 └── docs/               # Full documentation
 ```
-
-**⚠️ Important:** Binary files (.dll, .dylib, .so, .a) must be present in their respective platform directories.
-
----
-
-## ✅ Test Installation
-
-**Quick test to verify SDK is working:**
-
-```bash
-# Python
-python libs/test-utils.py
-
-# Node.js
-node libs/test-utils.js
-
-# C#
-csc Program.cs libs/test-utils.cs && Program.exe
-```
-
-**Expected:** All tests should pass (14/14).
-
-**See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for:**
-- How to download binaries
-- Platform-specific setup
-- Building language bindings
-- Running full test suite
-- Testing large constraints (up to 1M)
-- Troubleshooting
 
 ---
 
@@ -237,47 +57,19 @@ cd sdk/bindings/python
 pip install .
 ```
 
-**Usage (recommended, no manual SRS):**
+**Usage:**
 ```python
-from yoimiya import prove_test_precompiled
+from yoimiya import generate_test_srs, prove_test, prove_r1cs, prove_acir, prove_plonkish, aggregate_proofs
 
-num_constraints = 500
-witness = [1] * (num_constraints + 1)
-
-proof = prove_test_precompiled(num_constraints=num_constraints, witness=witness)
-assert proof.verify_precompiled()
-```
-
-**Usage (explicit SRS):**
-```python
-from yoimiya import generate_test_srs, prove_test
-
-num_constraints = 500
-witness = [1] * (num_constraints + 1)
-srs = generate_test_srs(max_degree=num_constraints + 1)
-
-proof = prove_test(num_constraints=num_constraints, witness=witness, srs=srs)
+srs = generate_test_srs(max_degree=2048)
+proof = prove_test(num_constraints=500, witness=[1,2,3,4], srs=srs)
 assert proof.verify(srs)
+
+# Or prove from circuit files
+proof_r1cs = prove_r1cs("circuit.r1cs", witness=[1,2,3], srs=srs)
+proof_acir = prove_acir("circuit.acir", witness=[1,2,3], srs=srs)
+proof_plonkish = prove_plonkish("circuit.plonkish", witness=[1,2,3], srs=srs)
 ```
-
-### Troubleshooting (Important)
-
-If `yoimiya_prove_test()` returns NULL or a wrapper raises `Failed to prove`, check these in order:
-
-1. Wrong binary for your platform/arch:
-  - Linux must use `libyoimiya-linux-x86_64.so`
-  - macOS Intel must use `libyoimiya-macos-x86_64.dylib`
-  - macOS Apple Silicon must use `libyoimiya-macos-aarch64.dylib`
-2. Witness length mismatch:
-  - For `num_constraints = n`, witness length must be at least `n + 1`
-    (equivalently: `witness_len > n`)
-3. SRS too small (manual SRS path):
-  - `max_degree >= num_constraints + 1`
-4. Stale binary copy:
-  - Remove old `.so/.dylib/.dll` files from platform and binding folders, then copy only the intended one.
-
-If needed, prefer the precompiled API first:
-`prove_test_precompiled(...)` + `verify_precompiled(...)`
 
 ### Node.js
 
@@ -310,9 +102,11 @@ gcc -o myapp myapp.c \
 ```c
 #include <yoimiya.h>
 
-YoimiyaProof* proof = yoimiya_prove_test_precompiled(500, witness, len);
-int valid = yoimiya_verify_precompiled(proof);  // 1 = valid, 0 = invalid
+YoimiyaSrs* srs = yoimiya_generate_test_srs(2048);
+YoimiyaProof* proof = yoimiya_prove_test(500, witness, len, srs);
+int valid = yoimiya_verify(proof, srs);  // 1 = valid, 0 = invalid
 yoimiya_free_proof(proof);
+yoimiya_free_srs(srs);
 ```
 
 ### C#
@@ -376,7 +170,29 @@ gcc -o c_example c_example.c \
 
 ---
 
-##  API Overview
+## 🔧 Building from Source
+
+To rebuild the SDK for your platform:
+
+```bash
+# Unix-like systems
+./scripts/build-sdk.sh all release
+
+# Windows (PowerShell)
+.\scripts\build-sdk.ps1 -Target all -Release
+
+# Specific platform only
+./scripts/build-sdk.sh linux-x86_64 release
+```
+
+**Requirements:**
+- Rust 1.70+
+- Cargo
+- (Optional) Cross-compilation toolchains for non-native targets
+
+---
+
+## 🔗 API Overview
 
 ### Core Types
 
@@ -389,44 +205,24 @@ gcc -o c_example c_example.c \
 ### Core Functions
 
 | Function | Purpose |
-|----------|---------|
+|----------|---------|  
 | `generate_test_srs(max_degree)` | Generate SRS |
-| `precompiled_srs_degree(num_constraints)` | Get bundled SRS tier for this circuit size |
+| `precompiled_test_srs(num_constraints)` | Get bundled SRS (no generation) |
 | `prove_test(constraints, witness, srs)` | Prove test circuit |
-| `prove_test_precompiled(constraints, witness)` | Prove without manual SRS handle |
+| `prove_test_precompiled(constraints, witness)` | Prove with bundled SRS |
+| `prove_r1cs(path, witness, srs)` | Prove R1CS circuit file |
+| `prove_acir(path, witness, srs)` | Prove ACIR circuit file (Noir) |
+| `prove_plonkish(path, witness, srs)` | Prove Plonkish circuit file (Halo2) |
 | `verify(proof, srs)` | Verify single proof |
-| `verify_precompiled(proof)` | Verify without manual SRS handle |
-| `aggregate_proofs(proofs[], srs)` | Aggregate proofs |
-| `batch_proof.to_calldata()` | Serialize batch proof to 275-byte EVM calldata |
+| `verify_precompiled(proof)` | Verify with bundled SRS |
+| `aggregate_proofs(proofs[], srs)` | Aggregate proofs into batch |
+| `aggregate_batches(batches[])` | Fold batches into super-batch |
+| `multi_batch_calldata(batches[])` | Serialize N batches for multi-batch verify |
+| `detect_hardware()` | Get CPU info and optimal parameters |
 
 ---
 
 ## 💡 Common Tasks
-
-### Generate Proofs on Your Dev Machine
-
-```python
-# Python (fast path)
-from yoimiya import prove_test_precompiled
-
-n = 1000
-witness = [1] * (n + 1)
-proof = prove_test_precompiled(num_constraints=n, witness=witness)
-assert proof.verify_precompiled(), "Proof failed!"
-```
-
-**Test with large constraints:**
-```python
-# Test up to 1M constraints
-from libs.test_utils import YoimiyaTester
-
-tester = YoimiyaTester(max_degree=1_000_000)
-results = tester.test_large_constraints([
-    50_000, 100_000, 250_000, 500_000, 1_000_000
-])
-```
-
-**See** [PROOF_GENERATION_GUIDE.md](docs/PROOF_GENERATION_GUIDE.md) for complete developer guide.
 
 ### Prove and Verify
 
@@ -454,12 +250,35 @@ for witness_data in batch_witnesses:
     proof = prove_test(100, witness_data, srs)
     proofs.append(proof)
 
-# Aggregate into single proof
+# Aggregate into single batch proof
 batch_proof = aggregate_proofs(proofs, srs)
 
 # Verify batch (more efficient)
 assert batch_proof.verify(srs), "Batch proof invalid!"
 ```
+
+### Super-Batch Aggregation (Batch-of-Batches)
+
+```python
+# Level 1: Each service creates its own batch
+batch_a = aggregate_proofs(proofs_a, srs)
+batch_b = aggregate_proofs(proofs_b, srs)
+
+# Level 2: Fold all batches into one super-batch
+super_batch = aggregate_batches([batch_a, batch_b])
+
+# Serialize for on-chain multi-batch verification
+blobs = multi_batch_calldata([batch_a, batch_b])
+```
+
+### On-Chain Verification
+
+Two Solidity contracts are provided:
+
+| Contract | Gas (single) | Multi-batch |
+|----------|-------------|-------------|
+| `YoimiyaBatchVerifier.sol` | ~95,000 | — |
+| `YoimiyaOptimizedVerifier.sol` | ~64,000 | ~22k/batch |
 
 ---
 
@@ -474,11 +293,20 @@ See `sdk/docs/README.md` for:
 
 ---
 
-## � Links
+## 📄 License
 
-- **Repository**: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK
-- **Issues**: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/issues
-- **Solidity Verifier**: See `contracts/YoimiyaBatchVerifier.sol`
+**Business Source License 1.1 (BSL-1.1)**
+
+See LICENSE file for terms.
+
+---
+
+## 🔗 Links
+
+- **Repository**: https://github.com/atlasw231-maker/yoimiya-sdk
+- **Issues**: https://github.com/atlasw231-maker/yoimiya-sdk/issues
+- **Solidity Verifiers**: See `contracts/YoimiyaBatchVerifier.sol` and `contracts/YoimiyaOptimizedVerifier.sol`
+- **Test Circuit Files**: `test_circuit.r1cs`, `test_circuit.acir`, `test_circuit.plonkish` available in releases
 
 ---
 
@@ -486,7 +314,7 @@ See `sdk/docs/README.md` for:
 
 - **Documentation**: `sdk/docs/`
 - **Examples**: `sdk/examples/`
-- **Issues**: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/issues
+- **Issues**: https://github.com/atlasw231-maker/yoimiya-sdk/issues
 - **Email**: atlasw231@gmail.com
 
 ---

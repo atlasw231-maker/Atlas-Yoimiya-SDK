@@ -10,6 +10,10 @@ Yoimiya is a universal zero-knowledge proof (ZK) system supporting multiple circ
 - **KZG commitments**: Efficient polynomial commitments
 - **BN254 pairing**: Battle-tested cryptographic pairing
 - **Batch aggregation**: Combine multiple proofs into a single batch proof
+- **Super-batch aggregation**: Fold multiple batches into a single super-batch
+- **Multi-batch verification**: Verify N batches in one EVM transaction
+- **Hardware detection**: Auto-detect CPU and select optimal proving params
+- **Precompiled SRS**: Bundled SRS tiers (no generation needed)
 - **Multi-platform**: Windows, Linux, macOS, Android, iOS
 - **Language bindings**: C, Python, Node.js, C#
 
@@ -200,6 +204,7 @@ int main() {
 | Function | Description |
 |----------|-------------|
 | `generate_test_srs(max_degree)` | Generate a test SRS (deterministic) |
+| `precompiled_test_srs(num_constraints)` | Get bundled SRS for constraint count (no generation) |
 | `free_srs(srs)` | Free SRS resources |
 
 #### Proving
@@ -207,22 +212,35 @@ int main() {
 | Function | Description |
 |----------|-------------|
 | `prove_test(num_constraints, witness, srs)` | Prove test circuit |
-| `prove_r1cs(r1cs_path, witness, srs)` | Prove R1CS circuit |
+| `prove_test_precompiled(num_constraints, witness)` | Prove test circuit with bundled SRS |
+| `prove_r1cs(r1cs_path, witness, srs)` | Prove R1CS circuit (Circom) |
+| `prove_acir(acir_path, witness, srs)` | Prove ACIR circuit (Noir) |
+| `prove_plonkish(plonkish_path, witness, srs)` | Prove Plonkish circuit (Halo2) |
 | `free_proof(proof)` | Free proof resources |
+| `proof_size_bytes(proof)` | Get compressed proof size |
 
 #### Verification
 
 | Function | Description |
 |----------|-------------|
-| `verify(proof, srs)` | Verify single proof (local, off-chain) |
-| `verify_batch(batch_proof, srs)` | Verify batch proof |
+| `verify(proof, srs)` | Verify single proof (off-chain) |
+| `verify_precompiled(proof)` | Verify with auto-selected bundled SRS |
 
 #### Aggregation
 
 | Function | Description |
 |----------|-------------|
-| `aggregate(proofs[], count, srs)` | Aggregate multiple proofs |
+| `aggregate(proofs[], count, srs)` | Aggregate multiple proofs into batch |
+| `aggregate_batches(batches[], count)` | Fold N batches into a super-batch |
+| `multi_batch_calldata(batches[], count)` | Serialize N batches for `verifyMultiBatch()` |
 | `free_batch_proof(batch_proof)` | Free batch proof resources |
+
+#### Hardware Detection
+
+| Function | Description |
+|----------|-------------|
+| `detect_hardware()` | Returns CPU info, tier, optimal partitions |
+| `optimal_partitions(num_constraints)` | Get best partition count for constraint size |
 
 ## Platform Support
 
@@ -275,6 +293,31 @@ Benchmark results (running on reference hardware):
 - 2 proofs: 0.0026 ms
 - 5 proofs: 0.0095 ms
 
+## On-Chain Verification
+
+Two Solidity verifier contracts are provided:
+
+| Contract | Gas (single) | Gas (multi-batch) | Use case |
+|----------|-------------|-------------------|----------|
+| `YoimiyaBatchVerifier.sol` | ~95,000 | — | Simple integration |
+| `YoimiyaOptimizedVerifier.sol` | ~64,000 | ~22k/batch | Production |
+
+`YoimiyaOptimizedVerifier.sol` supports:
+- `verifyBatch(bytes)` — Single batch (~64k gas)
+- `verifyOnly(bytes)` — View-only verification (~34k gas)
+- `verifyMultiBatch(bytes[])` — N batches, 1 pairing check (~22k/batch)
+- `verifyMultiBatchView(bytes[])` — View-only multi-batch (~20k/batch)
+
+## Test Circuit Files
+
+Sample circuit files for testing are available in releases:
+
+| File | Format | Size | Constraints |
+|------|--------|------|-------------|
+| `test_circuit.r1cs` | R1CS (Circom) | 1,212 bytes | 10 |
+| `test_circuit.acir` | ACIR (Noir) | 168 bytes | 10 |
+| `test_circuit.plonkish` | Plonkish (Halo2) | 212 bytes | 10 |
+
 ## Examples
 
 Complete examples are available in `examples/`:
@@ -300,6 +343,6 @@ Contributions welcome! Please see CONTRIBUTING.md
 
 ## Related Links
 
-- [Solidity Verifier](../contracts/YoimiyaBatchVerifier.sol)
+- [Solidity Verifiers](../contracts/) — `YoimiyaBatchVerifier.sol` and `YoimiyaOptimizedVerifier.sol`
 - [Repository](https://github.com/atlasw231-maker/yoimiya-sdk)
 - [Atlas Protocol](https://atlasw231-maker.github.io)
