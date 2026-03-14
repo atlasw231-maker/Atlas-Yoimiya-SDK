@@ -82,10 +82,16 @@ run('proof_size_bytes is positive', () => {
   proof.destroy();
 });
 
-// 4. R1CS circuit — use the bundled test circuit
-const r1csPath = path.resolve(__dirname, '../../assets/release/test_circuit.r1cs');
-run('proveR1cs test_circuit.r1cs', () => {
-  const witness = Array.from({ length: 12 }, () => 1n);
+// 4. R1CS circuit — use the Circom range_proof built into the repo
+// circuits/build/range/range_proof.r1cs: 64 constraints, 68 signals
+// Witness: value=12345678, max_value=2147483647 (2^31-1), all u64-safe
+const fs = require('fs');
+const r1csPath = path.resolve(__dirname, '../../circuits/build/range/range_proof.r1cs');
+const wjsonPath = path.resolve(__dirname, '../../circuits/build/range/witness.json');
+run('proveR1cs range_proof.r1cs (64 constraints)', () => {
+  assert(fs.existsSync(r1csPath), `R1CS file not found: ${r1csPath}`);
+  assert(fs.existsSync(wjsonPath), `Witness file not found: ${wjsonPath}`);
+  const witness = JSON.parse(fs.readFileSync(wjsonPath, 'utf8')).map(BigInt);
   const proof = proveR1cs(r1csPath, witness, srs);
   assert(proof && proof.handle, 'R1CS proof handle is null');
   assert(proof.verify(srs) === true, 'R1CS proof not valid');
