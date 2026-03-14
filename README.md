@@ -1,6 +1,8 @@
 # Yoimiya Binary SDK
 
-**Production-ready Zero-Knowledge Proving SDK with multi-platform binaries and language bindings.**
+**Production-ready, pre-built Zero-Knowledge Proving SDK for Windows, Linux, macOS, Android, and iOS.**
+
+This is the **binary distribution**—no compilation needed. Choose your platform and language binding below.
 
 | Platform | Status | Architecture |
 |----------|--------|--------------|
@@ -14,71 +16,99 @@
 
 ---
 
-## 📦 Quick Start
+## 📦 Getting Started
 
-### Extract the SDK
+**Step 1: Download** — Get the binary SDK from [releases](https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases)
 
+**Step 2: Extract**
 ```bash
 # Unix-like systems
 tar -xzf yoimiya-sdk-v0.1.0.tar.gz
+cd yoimiya-sdk-0.1.0
 
 # Windows
 unzip yoimiya-sdk-v0.1.0.zip
+cd yoimiya-sdk-0.1.0
 ```
 
-### Structure
+**Step 3: Choose your language** — Pick Python, Node.js, C, or C# below.
+
+All libraries are pre-built. No compilation required.
+
+---
+
+## � What's Included
 
 ```
-sdk/
-├── platforms/          # Pre-built binaries for each platform
-│   ├── windows-x86_64/
-│   ├── linux-x86_64/
-│   ├── macos-x86_64/
-│   ├── macos-aarch64/
-│   ├── android-armv8/
-│   └── ios-arm64/
-├── include/            # C headers
-├── bindings/           # Language-specific bindings
-│   ├── python/         # Python ctypes bindings
-│   ├── nodejs/         # Node.js FFI bindings
-│   └── csharp/         # C# P/Invoke bindings
-├── examples/           # Complete working examples
-└── docs/               # Full documentation
+yoimiya-sdk-0.1.0/
+├── platforms/              ← Pre-built binaries (pick your OS)
+│   ├── windows-x86_64/     ← Windows users
+│   ├── linux-x86_64/       ← Linux x86_64 users
+│   ├── macos-x86_64/       ← macOS Intel users
+│   ├── macos-aarch64/      ← macOS Apple Silicon users  
+│   ├── android-armv8/      ← Android users
+│   └── ios-arm64/          ← iOS users
+│
+├── include/                ← C header file (yoimiya.h)
+│
+├── bindings/               ← Language-specific bindings
+│   ├── python/             ← Python: pip install .
+│   ├── nodejs/             ← Node.js: npm install
+│   └── csharp/             ← C#: binding code
+│
+├── examples/               ← Working example programs
+│   ├── c_example.c
+│   ├── python_example.py
+│   ├── nodejs_example.js
+│   └── circuits/           ← Test circuit files
+│       ├── test_circuit.r1cs
+│       ├── test_circuit.acir
+│       └── test_circuit.plonkish
+│
+└── docs/                   ← Full API documentation
 ```
 
 ---
 
-## 🚀 Installation
+## �🚀 Installation by Language
 
 ### Python
 
 ```bash
-cd sdk/bindings/python
+cd bindings/python
 pip install .
 ```
 
-**Usage:**
+**First proof:**
 ```python
-from yoimiya import generate_test_srs, prove_test, prove_r1cs, prove_acir, prove_plonkish, aggregate_proofs
+from yoimiya import generate_test_srs, prove_test
 
 srs = generate_test_srs(max_degree=2048)
 proof = prove_test(num_constraints=500, witness=[1,2,3,4], srs=srs)
 assert proof.verify(srs)
-
-# Or prove from circuit files
-proof_r1cs = prove_r1cs("circuit.r1cs", witness=[1,2,3], srs=srs)
-proof_acir = prove_acir("circuit.acir", witness=[1,2,3], srs=srs)
-proof_plonkish = prove_plonkish("circuit.plonkish", witness=[1,2,3], srs=srs)
+print("✓ Proof valid!")
 ```
+
+**With circuit files:**
+```python
+from yoimiya import prove_r1cs, prove_acir, prove_plonkish
+
+proof_r1cs = prove_r1cs("path/to/circuit.r1cs", witness=[1,2,3], srs=srs)
+proof_acir = prove_acir("path/to/circuit.acir", witness=[1,2,3], srs=srs)
+proof_plonkish = prove_plonkish("path/to/circuit.plonkish", witness=[1,2,3], srs=srs)
+```
+
+Test circuit files are in `examples/circuits/` for quick testing.
 
 ### Node.js
 
 ```bash
-cd sdk/bindings/nodejs
+cd bindings/nodejs
 npm install
+node  # Interactive REPL
 ```
 
-**Usage:**
+**First proof:**
 ```javascript
 const { generateTestSrs, proveTest } = require('yoimiya-sdk');
 
@@ -89,16 +119,33 @@ console.log(proof.verify(srs)); // true
 
 ### C
 
-**Link with native library:**
+**Link with pre-built library:**
 
+**On Linux:**
 ```bash
 gcc -o myapp myapp.c \
-  -I./sdk/include \
-  -L./sdk/platforms/linux-x86_64 \
+  -I./include \
+  -L./platforms/linux-x86_64 \
   -lyoimiya
+./myapp
 ```
 
-**Usage:**
+**On Windows (MSVC):**
+```cmd
+cl myapp.c /I.\include /link /LIBPATH:.\platforms\windows-x86_64 yoimiya.lib
+myapp.exe
+```
+
+**On macOS:**
+```bash
+clang -o myapp myapp.c \
+  -I./include \
+  -L./platforms/macos-x86_64 \
+  -lyoimiya
+./myapp
+```
+
+**Sample code:**
 ```c
 #include <yoimiya.h>
 
@@ -111,7 +158,7 @@ yoimiya_free_srs(srs);
 
 ### C#
 
-**Add reference and use:**
+**Add the binding and use:**
 
 ```csharp
 using Yoimiya.SDK;
@@ -119,7 +166,10 @@ using Yoimiya.SDK;
 var srs = YoimiyaSdk.GenerateTestSrs(2048);
 var proof = YoimiyaSdk.ProveTest(500, witness, srs);
 bool valid = proof.Verify(srs);
+Console.WriteLine(valid ? "✓ Proof valid!" : "✗ Proof invalid!");
 ```
+
+Full binding: `bindings/csharp/Yoimiya.cs`
 
 ---
 
@@ -143,24 +193,22 @@ bool valid = proof.Verify(srs);
 
 Each language has a complete working example:
 
-- **C**: `sdk/examples/c_example.c` — Full workflow example
-- **Python**: `sdk/examples/python_example.py` — Integration example
-- **Node.js**: `sdk/examples/nodejs_example.js` — Service example
-- **C#**: Check `sdk/docs/` for usage patterns
+- **C**: `examples/c_example.c` — Full workflow example
+- **Python**: `examples/python_example.py` — Integration example
+- **Node.js**: `examples/nodejs_example.js` — Service example
+- **C#**: Check `docs/` for usage patterns
 
 ### Run Examples
 
 ```bash
 # Python
-cd sdk/examples
+cd examples
 python3 python_example.py
 
-# Node.js
-cd sdk/bindings/nodejs
-node ../../../examples/nodejs_example.js
+# Node.js  
+node nodejs_example.js
 
 # C
-cd sdk/examples
 gcc -o c_example c_example.c \
   -I../include \
   -L../platforms/linux-x86_64 \
@@ -170,25 +218,16 @@ gcc -o c_example c_example.c \
 
 ---
 
-## 🔧 Building from Source
+## 🔧 Building from Source (SDK Developers Only)
 
-To rebuild the SDK for your platform:
+This is a **binary distribution**—you don't need to build anything.
 
-```bash
-# Unix-like systems
-./scripts/build-sdk.sh all release
+To modify the SDK source or rebuild binaries for a new platform:
 
-# Windows (PowerShell)
-.\scripts\build-sdk.ps1 -Target all -Release
+1. Clone the [source repo](https://github.com/atlasw231-maker/Yoimiya-SDK)
+2. See the **[private repo README](https://github.com/atlasw231-maker/Yoimiya-SDK/blob/main/README.md)** for build instructions
 
-# Specific platform only
-./scripts/build-sdk.sh linux-x86_64 release
-```
-
-**Requirements:**
-- Rust 1.70+
-- Cargo
-- (Optional) Cross-compilation toolchains for non-native targets
+**Note:** Source builds require Rust 1.70+ and platform-specific toolchains.
 
 ---
 
@@ -284,11 +323,11 @@ Two Solidity contracts are provided:
 
 ## 📖 Full Documentation
 
-See `sdk/docs/README.md` for:
+See `docs/README.md` for:
 - Detailed API reference
 - Complete examples for each language
 - Performance metrics
-- Contract integration guide
+- On-chain verification guide
 - Troubleshooting
 
 ---
