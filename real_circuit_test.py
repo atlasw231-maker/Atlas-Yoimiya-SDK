@@ -98,39 +98,46 @@ def _write_acir(opcodes, num_witnesses, num_public) -> bytes:
 
 def make_fibonacci_r1cs(n: int):
     """
-    Fibonacci addition circuit: F[i] + F[i+1] = F[i+2], n constraints.
+    Linear add-chain: x[i] + 1 = x[i+1], n constraints.
+
+    This is structurally a linear-dependency chain (same graph shape as
+    Fibonacci) but uses values 1, 2, 3, ..., n+1 that always fit in u64.
+    True Fibonacci values overflow u64 after ~94 steps, causing the SDK
+    to receive a wrong witness and an unsatisfied R1CS.
 
     Variable layout:
-      var[0]           = constant-1 wire (witness[0] = 1)
-      var[1..n+2]      = F[0]..F[n+1]
-    Total variables:  n+3
+      var[0]       = constant-1 wire (witness[0] = 1)
+      var[1..n+1]  = x[0]..x[n]
+    Total variables: n+2
+    Witness: [1, 1, 2, 3, ..., n+1]
     """
     constraints = []
     for i in range(n):
-        a = [(1 + i, 1), (2 + i, 1)]   # F[i] + F[i+1]
-        b = [(0, 1)]                     # × 1 (constant wire)
-        c = [(3 + i, 1)]                 # = F[i+2]
+        # x[i] + 1 = x[i+1]  =>  (x[i] + var[0]) * 1 = x[i+1]
+        a = [(i + 1, 1), (0, 1)]  # x[i] + constant-1
+        b = [(0, 1)]               # × 1
+        c = [(i + 2, 1)]           # = x[i+1]
         constraints.append((a, b, c))
 
-    # Compute witness: [1, F(0), F(1), ..., F(n+1)]
-    fibs = [1, 1]
-    for _ in range(n):
-        fibs.append((fibs[-1] + fibs[-2]) % BN254_R)
-    witness = [1] + fibs  # var[0]=1, then F[0]..F[n+1]
+    # witness[0]=1 (constant), witness[k]=k  for k=1..n+1
+    witness = [1] + list(range(1, n + 2))  # [1, 1, 2, 3, ..., n+1]
 
-    data = _write_r1cs_raw(constraints, n + 3, 1)
+    data = _write_r1cs_raw(constraints, n + 2, 1)
     return data, witness
 
 
 def make_mulchain_r1cs(n: int):
     """
-    Multiplicative Fibonacci: x[i] * x[i+1] = x[i+2], n constraints.
+    Multiplicative chain: x[i] * x[i+1] = x[i+2], n constraints.
 
-    Each element is the product of the two predecessors — different structure
-    from the trivial squaring chain in test_circuit (which does x[i]*x[i]=x[i+1]).
+    Uses all-ones witness: 1 * 1 = 1 for every step.  Starting with values
+    like 2 or 3 causes products to grow faster than u64::MAX (~1.84e19)
+    overflowing ctypes.c_uint64 casts, producing a wrong witness and an
+    unsatisfied R1CS. All-ones gives distinct sparse structure (each var
+    touches exactly two constraints) while staying correct.
 
     Variable layout: var[0..n+1], total n+2 variables.
-    Witness: [2, 3, 6, 18, 108, ...] (mul-chain mod BN254_R)
+    Witness: all 1s.
     """
     constraints = []
     for i in range(n):
@@ -139,10 +146,7 @@ def make_mulchain_r1cs(n: int):
         c = [(i + 2, 1)]
         constraints.append((a, b, c))
 
-    w = [2, 3]
-    for i in range(n):
-        w.append((w[i] * w[i + 1]) % BN254_R)
-    witness = w  # n+2 values
+    witness = [1] * (n + 2)  # 1 * 1 = 1 for every constraint
 
     data = _write_r1cs_raw(constraints, n + 2, 1)
     return data, witness
@@ -206,8 +210,10 @@ def make_mimc_acir(n: int):
         opcodes.append((1, x_i, x_i, t_i))       # t = x * x
         opcodes.append((1, t_i, x_i, x_next))    # next_x = t * x
 
-    # Compute witness: x[r+1] = x[r]^3 mod p
-    xs = [2]  # x[0] = 2
+    # x[0]=1: 1^2=1, 1^3=1 — all values 1, safely within u64.
+    # Starting with x[0]=2 causes values to grow as 2^(3^r), exceeding
+    # u64::MAX in ~3 rounds and BN254_R in ~12 rounds, breaking the witness.
+    xs = [1]  # x[0] = 1
     ts = []
     for r in range(rounds):
         t = (xs[r] * xs[r]) % BN254_R
