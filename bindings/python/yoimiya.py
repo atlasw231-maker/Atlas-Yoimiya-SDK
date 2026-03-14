@@ -477,8 +477,8 @@ def prove_r1cs_field(
     Returns:
         Proof object.
     """
-    # BN254 scalar field prime (for mod reduction on oversized values)
-    _BN254_R = 0x30644e72e131a029b85045b68181585d2833e84879b9709142e1f0121e8400f
+    # BN254 scalar field prime (Fr), per EIP-197 / arkworks bn254 crate
+    _BN254_R = 0x30644e72e131a029b85045b68181585d2833e84879b9709142e1f0121e840101
 
     # Encode each field element as 32-byte LE, reduced mod p
     buf = bytearray()
