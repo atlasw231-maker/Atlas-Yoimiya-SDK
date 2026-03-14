@@ -69,10 +69,12 @@
 
 ## Build from Source (Developers Only)
 
-If you need to rebuild binaries for a custom platform:
+⚠️ **IMPORTANT:** The source repository is **PRIVATE**. You must have explicit access granted to proceed.
+
+**If you have access:**
 
 ```bash
-# Clone the source repository
+# Clone the source repository (requires permission)
 git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git
 cd Yoimiya-SDK
 
@@ -87,6 +89,11 @@ cargo build --release
 # Copy to your SDK directory
 cp target/release/libyoimiya.* /path/to/Atlas-Yoimiya-SDK/platforms/YOUR_PLATFORM/
 ```
+
+**If you get "404 Not Found" error:**
+- You don't have access to the private repository
+- Contact the maintainer to request access
+- Or use the pre-built binaries instead (recommended)
 
 **Requirements:**
 - Rust 1.70+
@@ -145,9 +152,16 @@ wmic os get osarchitecture
 
 ### Q: What if I need binaries right now?
 
-**A:** Build locally:
+**A:** You have two options:
 
+**Option 1: Use pre-built binaries (Recommended)**
+- Available now at: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
+- No compilation needed
+- Works for all 6 platforms
+
+**Option 2: Build locally from source (Requires access)**
 ```bash
+# Try to clone (will fail if you don't have access)
 git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git
 cd Yoimiya-SDK
 cargo build --release
@@ -155,6 +169,8 @@ cargo build --release
 # Binary will be in target/release/
 # Copy to your SDK: cp target/release/libyoimiya.* ../Atlas-Yoimiya-SDK/platforms/YOUR_PLATFORM/
 ```
+
+If you get a "404" or "Permission Denied" error, you don't have access to the private source repo. Stick with Option 1 (pre-built binaries) instead.
 
 ---
 
@@ -182,7 +198,7 @@ cargo build --release
 ### **Yoimiya-SDK** (Private Source Code)
 **https://github.com/atlasw231-maker/Yoimiya-SDK** (Requires access)
 
-✅ **What you get:**
+✅ **What you get (if you have access):**
 - Full Rust source code
 - Circuit parsers (R1CS, ACIR, Plonkish)
 - Proving engine (CDG, Mira, KZG, MSM implementations)
@@ -194,7 +210,12 @@ cargo build --release
 - Pre-built binaries
 - `platforms/` directory
 
-**Use this if:** You need to modify the SDK, rebuild for a custom platform, or study the implementation.
+⚠️ **IMPORTANT: This is a PRIVATE repository**
+- You must be explicitly granted access by the maintainer
+- Random users cannot clone it (will get "404 Not Found" error)
+- Request access if you need to build/modify the SDK
+
+**Use this if:** You have been granted access AND need to modify the SDK, rebuild for a custom platform, or study the implementation.
 
 ---
 
