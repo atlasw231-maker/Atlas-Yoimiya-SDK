@@ -128,126 +128,6 @@ cp target/release/libyoimiya.* /path/to/Atlas-Yoimiya-SDK/platforms/YOUR_PLATFOR
   - Automated releases
   - Asset uploads
 
-### ⏳ In Progress (Via CI/CD)
-
-- Pre-compiled binaries for 6 platforms
-- Published packages:
-  - PyPI (Python)
-  - npm (Node.js)
-  - NuGet (C#)
-
----
-
-## 🚀 How to Use Right Now
-
-### 1. Clone/Download SDK Structure
-
-```bash
-git clone https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK.git
-cd Atlas-Yoimiya-SDK
-```
-
-### 2. Wait for Binaries
-
-Monitor the GitHub Actions workflow:
-- https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
-- Estimated time: 30-60 minutes
-
-### 3. Download Binaries (Once Available)
-
-Check GitHub Releases > Assets:
-- https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
-
-### 4. Extract to Platform Directory
-
-```bash
-# Example: macOS x86_64
-tar -xzf yoimiya-macos-x86_64.tar.gz
-# Contents go to platforms/macos-x86_64/
-```
-
-### 5. Install Language Bindings
-
-```bash
-# Python
-cd bindings/python && pip install .
-
-# Node.js
-cd bindings/nodejs && npm install
-
-# C# / C
-# See GETTING_STARTED.md
-```
-
-### 6. Run Tests
-
-```bash
-# Quick test
-python libs/test-utils.py
-
-# See all tests pass
-node libs/test-utils.js
-
-# Custom code
-python examples/proof_generation_guide.py
-```
-
----
-
-## ⏱️ Binary Availability Timeline
-
-| Time | Event | Status |
-|------|-------|--------|
-| T+0 | GitHub Actions triggered | ⏳ In Progress |
-| T+5-10 min | Windows build completes | ⏳ In Progress |
-| T+10-20 min | Linux build completes | ⏳ In Progress |
-| T+20-30 min | macOS x86_64 build completes | ⏳ In Progress |
-| T+30-40 min | macOS ARM64 build completes | ⏳ In Progress |
-| T+40-50 min | Android build completes | ⏳ In Progress |
-| T+50-60 min | iOS build completes | ⏳ In Progress |
-| T+60+ min | All assets available in GitHub Releases | ⏳ Will Update |
-
-**Note:** Times are estimates. Check GitHub Actions for actual progress.
-
----
-
-## ❓ FAQ
-
-### Q: Why aren't binaries included in git?
-
-**A:** Binary files are large (~5-10 MB each) and would bloat the repository. Instead:
-- GitHub Actions builds them automatically
-- Binaries are uploaded as release assets
-- Developers download only the binaries for their platform
-
-### Q: Can I test without binaries?
-
-**A:** Not yet. You need the platform binary for your language bindings to work. Options:
-1. Wait for GitHub Actions to complete (30-60 min)
-2. Build locally from source (see Option 3 above)
-3. Check back in ~1 hour for release assets
-
-### Q: What if the build fails?
-
-**A:** Check GitHub Actions logs:
-- Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
-- Click on the failed workflow
-- Review error messages in the logs
-- Open an issue if you find a problem
-
-### Q: Which binary should I download?
-
-**A:** Choose based on your platform:
-
-| Platform | Binary | CPU |
-|----------|--------|-----|
-| Windows | `yoimiya-windows-x86_64.zip` | Intel/AMD 64-bit |
-| macOS | `yoimiya-macos-x86_64.tar.gz` | Intel Macs |
-| macOS | `yoimiya-macos-aarch64.tar.gz` | Apple Silicon (M1/M2/M3) |
-| Linux | `yoimiya-linux-x86_64.tar.gz` | Intel/AMD 64-bit |
-| Android | `yoimiya-android-armv8.tar.gz` | ARM64 devices |
-| iOS | `yoimiya-ios-arm64.tar.gz` | ARM64 devices |
-
 **Unsure about your system?**
 ```bash
 # macOS
@@ -278,7 +158,47 @@ cargo build --release
 
 ---
 
-## 🔗 Resources
+## � Two Repositories Explained
+
+### **Atlas-Yoimiya-SDK** (Public Binary Distribution)
+**https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK**
+
+✅ **What you get:**
+- Pre-built binaries (no compilation needed)
+- Language bindings (Python, Node.js, C#, C)
+- Sample test circuits (.r1cs, .acir, .plonkish)
+- Solidity verifier contracts
+- Full documentation and examples
+
+❌ **What you DON'T get:**
+- Source code
+- Rust implementation
+- Build system
+
+**Use this if:** You want to use the SDK immediately without compiling.
+
+---
+
+### **Yoimiya-SDK** (Private Source Code)
+**https://github.com/atlasw231-maker/Yoimiya-SDK** (Requires access)
+
+✅ **What you get:**
+- Full Rust source code
+- Circuit parsers (R1CS, ACIR, Plonkish)
+- Proving engine (CDG, Mira, KZG, MSM implementations)
+- Build scripts for all platforms
+- CI/CD configuration
+- All development history
+
+❌ **What you DON'T get:**
+- Pre-built binaries
+- `platforms/` directory
+
+**Use this if:** You need to modify the SDK, rebuild for a custom platform, or study the implementation.
+
+---
+
+## �🔗 Resources
 
 - **GitHub Repository:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK
 - **Releases Page:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases
