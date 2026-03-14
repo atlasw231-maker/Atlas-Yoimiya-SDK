@@ -108,6 +108,30 @@ _lib.yoimiya_prove_r1cs.argtypes = [
 ]
 _lib.yoimiya_prove_r1cs.restype = ctypes.POINTER(YoimiyaProof)
 
+_lib.yoimiya_prove_r1cs_field.argtypes = [
+    ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_uint8),
+    ctypes.c_uint32,
+    ctypes.POINTER(YoimiyaSrs)
+]
+_lib.yoimiya_prove_r1cs_field.restype = ctypes.POINTER(YoimiyaProof)
+
+_lib.yoimiya_prove_acir.argtypes = [
+    ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_uint64),
+    ctypes.c_uint32,
+    ctypes.POINTER(YoimiyaSrs)
+]
+_lib.yoimiya_prove_acir.restype = ctypes.POINTER(YoimiyaProof)
+
+_lib.yoimiya_prove_plonkish.argtypes = [
+    ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_uint64),
+    ctypes.c_uint32,
+    ctypes.POINTER(YoimiyaSrs)
+]
+_lib.yoimiya_prove_plonkish.restype = ctypes.POINTER(YoimiyaProof)
+
 _lib.yoimiya_free_proof.argtypes = [ctypes.POINTER(YoimiyaProof)]
 _lib.yoimiya_free_proof.restype = None
 
@@ -430,6 +454,106 @@ def prove_r1cs(
     return Proof(proof_handle)
 
 
+def prove_r1cs_field(
+    r1cs_path: str,
+    witness: List[int],
+    srs: Srs
+) -> Proof:
+    """
+    Prove an R1CS circuit with full BN254 field-element witnesses.
+
+    Unlike prove_r1cs(), this function correctly handles witness values that
+    exceed 2^64, as produced by Circom/snarkjs for circuits with non-trivial
+    intermediate signals (MiMC, Poseidon, etc.).
+
+    Each integer in `witness` is encoded as a 32-byte little-endian BN254
+    scalar field element before being passed to the native library.
+
+    Args:
+        r1cs_path: Path to the .r1cs file compiled by circom.
+        witness: List of Python ints (arbitrary size, reduced mod BN254 prime).
+        srs: Structured Reference String.
+
+    Returns:
+        Proof object.
+    """
+    # BN254 scalar field prime (for mod reduction on oversized values)
+    _BN254_R = 0x30644e72e131a029b85045b68181585d2833e84879b9709142e1f0121e8400f
+
+    # Encode each field element as 32-byte LE, reduced mod p
+    buf = bytearray()
+    for v in witness:
+        fe = int(v) % _BN254_R
+        buf.extend(fe.to_bytes(32, 'little'))
+
+    byte_array = (ctypes.c_uint8 * len(buf))(*buf)
+    proof_handle = _lib.yoimiya_prove_r1cs_field(
+        r1cs_path.encode('utf-8'),
+        byte_array,
+        len(witness),
+        srs.handle
+    )
+    if not proof_handle:
+        raise RuntimeError("Failed to prove R1CS with field witnesses")
+    return Proof(proof_handle)
+
+
+def prove_acir(
+    acir_path: str,
+    witness: List[int],
+    srs: Srs
+) -> Proof:
+    """
+    Prove an ACIR circuit.
+
+    Args:
+        acir_path: Path to the .acir file.
+        witness: List of witness values (u64).
+        srs: Structured Reference String.
+
+    Returns:
+        Proof object.
+    """
+    witness_array = (ctypes.c_uint64 * len(witness))(*witness)
+    proof_handle = _lib.yoimiya_prove_acir(
+        acir_path.encode('utf-8'),
+        witness_array,
+        len(witness),
+        srs.handle
+    )
+    if not proof_handle:
+        raise RuntimeError("Failed to prove ACIR")
+    return Proof(proof_handle)
+
+
+def prove_plonkish(
+    plonkish_path: str,
+    witness: List[int],
+    srs: Srs
+) -> Proof:
+    """
+    Prove a Plonkish circuit.
+
+    Args:
+        plonkish_path: Path to the .plonkish file.
+        witness: List of witness values (u64).
+        srs: Structured Reference String.
+
+    Returns:
+        Proof object.
+    """
+    witness_array = (ctypes.c_uint64 * len(witness))(*witness)
+    proof_handle = _lib.yoimiya_prove_plonkish(
+        plonkish_path.encode('utf-8'),
+        witness_array,
+        len(witness),
+        srs.handle
+    )
+    if not proof_handle:
+        raise RuntimeError("Failed to prove Plonkish")
+    return Proof(proof_handle)
+
+
 def aggregate_proofs(proofs: List[Proof], srs: Srs) -> BatchProof:
     """
     Aggregate multiple proofs into a single batch proof.
@@ -468,5 +592,7 @@ __all__ = [
     'prove_test',
     'prove_test_precompiled',
     'prove_r1cs',
+    'prove_acir',
+    'prove_plonkish',
     'aggregate_proofs',
 ]
