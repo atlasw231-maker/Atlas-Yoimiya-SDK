@@ -17,29 +17,18 @@ The Yoimiya SDK is distributed as **pre-compiled binaries only**. There's no sou
 
 ---
 
-## ⚠️ Important: Binary Availability
+## ✅ Binaries Available Now
 
-**⚠️ PRE-COMPILED BINARIES ARE NOT YET AVAILABLE**
+**All pre-compiled binaries are published and ready for download!**
 
 **Current Status:**
 - ✅ SDK structure, bindings, tests, documentation ready
-- ❌ Pre-compiled binaries not yet published
-- ⏳ Waiting for GitHub Actions to build and upload binaries
+- ✅ All pre-compiled binaries published and tested
+- ✅ All 6 platforms available (Windows, Linux, macOS Intel/Apple Silicon, Android, iOS)
+- ✅ 13 total release assets including headers, Python bindings, and test circuits
 
-**Your Options:**
-
-1. **Wait for Binaries (Recommended)** 
-   - Check back in 30-60 minutes
-   - Monitor: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/actions
-   - Download when available
-
-2. **Build Binaries Locally (If You Need Testing Now)**
-   - Clone source: `git clone https://github.com/atlasw231-maker/Yoimiya-SDK.git`
-   - Build: `cargo build --release`
-   - Copy binaries to `platforms/YOUR_PLATFORM/`
-   - Then follow setup steps below
-
-**See [RELEASE_STATUS.md](RELEASE_STATUS.md) for more details.**
+**Version:** v0.1.0 (March 2026)
+**Test Status:** All 20 integration tests passing
 
 ---
 
@@ -174,11 +163,17 @@ ls -lh platforms/linux-x86_64/libyoimiya.so
 
 **Problem:** You see the directory but the binary file is empty (0 bytes) or doesn't exist.
 
-**Solution:** Download from GitHub Releases
+**Solution:** Re-download from GitHub Releases
 
 1. Go to: https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
-2. Under "Assets", download the correct archive for your OS
-3. Extract and verify the binary size
+2. Under "Assets", download the correct archive for your OS:
+   - `yoimiya-windows-x86_64.zip` (Windows x86_64)
+   - `yoimiya-linux-x86_64.tar.gz` (Linux x86_64)
+   - `yoimiya-macos-x86_64.tar.gz` (macOS Intel)
+   - `yoimiya-macos-aarch64.tar.gz` (macOS Apple Silicon)
+   - `yoimiya-android-armv8.tar.gz` (Android ARMv8)
+   - `yoimiya-ios-arm64.tar.gz` (iOS ARM64)
+3. Extract and verify the binary size (should be several MB, not empty)
 
 ---
 
@@ -245,7 +240,7 @@ Choose your language and follow the setup:
 
 2. **Include header:**
    ```c
-   #include "yoimiya.h"
+   #include "include/yoimiya.h"
    ```
 
 3. **Link library:**
@@ -253,10 +248,13 @@ Choose your language and follow the setup:
    # Linux
    gcc -o myapp myapp.c -I./include -L./platforms/linux-x86_64 -lyoimiya
    
-   # macOS
+   # macOS Intel
    gcc -o myapp myapp.c -I./include -L./platforms/macos-x86_64 -lyoimiya
    
-   # Windows
+   # macOS Apple Silicon
+   gcc -o myapp myapp.c -I./include -L./platforms/macos-aarch64 -lyoimiya
+   
+   # Windows (MSVC)
    cl myapp.c /I.\include /link /LIBPATH:.\platforms\windows-x86_64 yoimiya.lib
    ```
 

@@ -2,43 +2,127 @@
 
 **How to generate proofs on your dev machine, test with constraints up to 1M, and optimize for production.**
 
+Supports all circuit formats: **R1CS**, **ACIR** (Noir), **Plonkish** (Halo2)
+
 ---
 
 ## Quick Start
 
 ### 1. Initialize SRS (Structured Reference String)
 
+**Option A: Generate SRS (for custom sizes)**
 ```python
 from yoimiya import generate_test_srs, prove_test
 
-# Create SRS - reuse for multiple proofs
+# Create SRS for up to 2048 constraints
 srs = generate_test_srs(max_degree=2048)
+```
+
+**Option B: Use Precompiled SRS (no generation needed)**
+```python
+from yoimiya import precompiled_test_srs
+
+# Bundled SRS - auto-selects tier for your constraint count
+srs = precompiled_test_srs(num_constraints=1000)
 ```
 
 ### 2. Generate a Proof
 
+**Test Circuit (synthetic):**
 ```python
-# Define your computation (witness data)
-num_constraints = 500
-witness = [1] * (num_constraints + 1)
-
-# Generate proof
 proof = prove_test(
-    num_constraints=num_constraints,
-    witness=witness,
+    num_constraints=500,
+    witness=[1] * 501,  # witness_len must be > num_constraints
     srs=srs
 )
 ```
 
-**Important requirement:** For test circuits, witness length must be at least
-`num_constraints + 1` (equivalently `witness_len > num_constraints`).
+**R1CS Circuit (Circom):**
+```python
+from yoimiya import prove_r1cs
+
+proof = prove_r1cs(
+    path="path/to/circuit.r1cs",
+    witness=[1, 2, 3, ...],
+    srs=srs
+)
+```
+
+**ACIR Circuit (Noir):**
+```python
+from yoimiya import prove_acir
+
+proof = prove_acir(
+    path="path/to/circuit.acir",
+    witness=[1, 2, 3, ...],
+    srs=srs
+)
+```
+
+**Plonkish Circuit (Halo2):**
+```python
+from yoimiya import prove_plonkish
+
+proof = prove_plonkish(
+    path="path/to/circuit.plonkish",
+    witness=[1, 2, 3, ...],
+    srs=srs
+)
+```
 
 ### 3. Verify the Proof
 
+**Local Verification (off-chain):**
 ```python
-# Verify locally (optional, useful for development)
 is_valid = proof.verify(srs)
 print(f"Proof valid: {is_valid}")
+```
+
+**With Precompiled SRS (no SRS parameter needed):**
+```python
+from yoimiya import verify_precompiled
+
+is_valid = verify_precompiled(proof)
+print(f"Proof valid: {is_valid}")
+```
+
+### 4. Aggregate Multiple Proofs
+
+**Level 1: Basic Aggregation**
+```python
+from yoimiya import aggregate_proofs
+
+proofs = [proof1, proof2, proof3]
+batch_proof = aggregate_proofs(proofs, srs)
+assert batch_proof.verify(srs)
+```
+
+**Level 2: Super-Batch (fold multiple batches)**
+```python
+from yoimiya import aggregate_batches
+
+batch_a = aggregate_proofs(proofs_a, srs)
+batch_b = aggregate_proofs(proofs_b, srs)
+
+super_batch = aggregate_batches([batch_a, batch_b])
+assert super_batch.verify(srs)
+```
+
+### 5. Prepare for On-Chain Submission
+
+**Single batch:**
+```python
+calldata = batch_proof.to_calldata()  # 275 bytes fixed
+# Submit to YoimiyaBatchVerifier.sol or YoimiyaOptimizedVerifier.sol
+```
+
+**Multiple batches (multi-batch on-chain):**
+```python
+from yoimiya import multi_batch_calldata
+
+blobs = multi_batch_calldata([batch1, batch2, batch3])
+# Each blob is 275 bytes, submit to verifyMultiBatch()
+# Gas savings: ~22k/batch instead of ~64k/batch
 ```
 
 ---
@@ -61,49 +145,46 @@ print(f"Proof valid: {is_valid}")
 
 ---
 
-## Testing Framework
+## Testing with Sample Circuits
 
-### Basic Testing (Standard Sizes)
+Test circuits are included in the release:
 
 ```python
-from libs.test_utils import YoimiyaTester
+from yoimiya import prove_r1cs, prove_acir, prove_plonkish, verify
 
-tester = YoimiyaTester(max_degree=2048)
+srs = generate_test_srs(max_degree=4096)
 
-# Test standard sizes: 100, 500, 1000, 2000
-results = tester.test_scalability()
+# All use 10 constraints, witness = [1, 1, ..., 1]
+proof_r1cs = prove_r1cs("examples/circuits/test_circuit.r1cs", [1]*12, srs)
+proof_acir = prove_acir("examples/circuits/test_circuit.acir", [1]*13, srs)
+proof_plonkish = prove_plonkish("examples/circuits/test_circuit.plonkish", [1]*32, srs)
+
+assert verify(proof_r1cs, srs)
+assert verify(proof_acir, srs)
+assert verify(proof_plonkish, srs)
+print("✓ All sample circuits verified!")
 ```
 
-### Large Constraint Testing (10K - 1M)
+## Custom Scalability Testing
 
 ```python
-# For large proofs, create larger SRS
-tester = YoimiyaTester(max_degree=1_000_000)
+from yoimiya import generate_test_srs, prove_test, verify
+import time
 
-# Test 10K to 1M constraints
-results = tester.test_large_constraints([
-    10_000,
-    50_000,
-    100_000,
-    250_000,
-    500_000,
-    1_000_000
-])
-```
-
-### Custom Constraint Testing
-
-```python
-# Test your specific constraint requirements
-my_sizes = [512, 2048, 5120]
-results = tester.test_large_constraints(my_sizes)
-
-# Analyze results
-for result in results:
-    print(f"Constraints: {result['constraints']}")
-    print(f"  Prove: {result['prove_ms']}ms")
-    print(f"  Verify: {result['verify_ms']}ms")
-    print(f"  Valid: {result['proof_valid']}")
+# Test various constraint sizes
+for n_constraints in [100, 500, 1000, 5000, 10000]:
+    srs = generate_test_srs(max_degree=n_constraints+1)
+    witness = [1] * (n_constraints + 1)
+    
+    start = time.perf_counter()
+    proof = prove_test(n_constraints, witness, srs)
+    prove_time = (time.perf_counter() - start) * 1000
+    
+    start = time.perf_counter()
+    valid = verify(proof, srs)
+    verify_time = (time.perf_counter() - start) * 1000
+    
+    print(f"Constraints: {n_constraints:6d} | Prove: {prove_time:6.2f}ms | Verify: {verify_time:6.2f}ms | Valid: {valid}")
 ```
 
 ---
@@ -197,7 +278,51 @@ print(f"Prove time (max): {max(prove_times)*1000:.2f}ms")
 print(f"Verify time (max): {max(verify_times)*1000:.2f}ms")
 ```
 
-### Phase 3: Batch Optimization
+### Phase 3: Aggregation & On-Chain Optimization
+
+```python
+from yoimiya import aggregate_proofs, multi_batch_calldata
+
+# Prove 10 circuits
+proofs = []
+for i in range(10):
+    proof = prove_test(1000, [1]*1001, srs)
+    proofs.append(proof)
+
+# Aggregate into single batch (~64k gas)
+batch = aggregate_proofs(proofs, srs)
+calldata = batch.to_calldata()  # 275 bytes
+
+# Multiple batches (multi-batch ~22k/batch gas)
+blobs = multi_batch_calldata([batch1, batch2, batch3])
+for blob in blobs:
+    submit_to_verifyMultiBatch(blob)  # More efficient!
+```
+
+### Phase 4: Hardware Detection
+
+Optimize proving for your deployment environment:
+
+```python
+from yoimiya import detect_hardware, prove_test
+
+hw = detect_hardware()
+print(f"CPU cores: {hw.cores}")
+print(f"Tier: {hw.tier}")  # Low, Mid, High, Server
+print(f"Optimal partitions: {hw.optimal_partitions}")
+
+# Proving automatically uses detected optimal settings
+proof = prove_test(num_constraints, witness, srs)
+```
+
+**Tier Selection:**
+
+| Tier | Cores | Default partitions | Example devices |
+|------|-------|--------------------|----------|
+| Low | 1–2 | 1 | Embedded, low-end phones |
+| Mid | 3–4 | 2 | Budget phones, Chromebooks |
+| High | 5–8 | 4 | Flagship phones, laptops |
+| Server | 9+ | 8 | Cloud, workstations |
 
 ```python
 # If processing multiple proofs, test aggregation
