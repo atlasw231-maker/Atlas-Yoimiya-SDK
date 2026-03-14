@@ -1,240 +1,185 @@
 /**
  * Yoimiya ZK Proving SDK - Node.js Bindings
  *
- * This module provides JavaScript/TypeScript bindings to the Yoimiya library.
+ * Uses koffi for FFI — ships prebuilt binaries, no compilation required.
+ * Supports Node.js 18, 20, 22, 24 on Windows/Linux/macOS.
  */
 
-const ffi = require('ffi-napi');
-const ref = require('ref-napi');
-const Struct = require('ref-struct-di')(ref);
-const ArrayType = require('ref-array-di')(ref);
+'use strict';
+
+const koffi = require('koffi');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
-// Platform detection
+// ─── Platform detection ───────────────────────────────────────────────────────
+
 function getLibraryPath() {
   const platform = os.platform();
   const arch = os.arch();
+
   const platformDirMap = {
-    'win32:x64': 'windows-x86_64',
-    'linux:x64': 'linux-x86_64',
-    'darwin:x64': 'macos-x86_64',
-    'darwin:arm64': 'macos-aarch64',
+    'win32:x64':   'windows-x86_64',
+    'linux:x64':   'linux-x86_64',
+    'darwin:x64':  'macos-x86_64',
+    'darwin:arm64':'macos-aarch64',
   };
-  
-  const libMap = {
-    'win32': 'yoimiya.dll',
-    'linux': 'libyoimiya.so',
+
+  const libNameMap = {
+    'win32':  'yoimiya.dll',
+    'linux':  'libyoimiya.so',
     'darwin': 'libyoimiya.dylib',
   };
-  
-  const libName = libMap[platform];
-  if (!libName) {
-    throw new Error(`Unsupported platform: ${platform} ${arch}`);
-  }
-  
-  const searchPaths = [
+
+  const libName = libNameMap[platform];
+  if (!libName) throw new Error(`Unsupported platform: ${platform} ${arch}`);
+
+  const platformDir = platformDirMap[`${platform}:${arch}`] || `${platform}-${arch}`;
+
+  const candidates = [
     libName,
     path.join(__dirname, libName),
     path.join(__dirname, 'lib', libName),
-    path.join(__dirname, '..', '..', 'platforms', platformDirMap[`${platform}:${arch}`] || `${platform}-${arch}`, libName),
+    path.join(__dirname, '..', '..', 'platforms', platformDir, libName),
   ];
-  
-  for (const searchPath of searchPaths) {
-    if (fs.existsSync(searchPath)) {
-      return path.resolve(searchPath);
-    }
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return path.resolve(p);
   }
-  
-  throw new Error(`Could not find Yoimiya library: ${libName}`);
+
+  throw new Error(
+    `Could not find ${libName}. Expected at platforms/${platformDir}/${libName}`
+  );
 }
 
-const libPath = getLibraryPath();
+// ─── Load library ─────────────────────────────────────────────────────────────
 
-// Define opaque types
-const YoimiyaSrs = ref.types.void;
-const YoimiyaProof = ref.types.void;
-const YoimiyaBatchProof = ref.types.void;
+const lib = koffi.load(getLibraryPath());
 
-const YoimiyaSrsPtr = ref.refType(YoimiyaSrs);
-const YoimiyaProofPtr = ref.refType(YoimiyaProof);
-const YoimiyaBatchProofPtr = ref.refType(YoimiyaBatchProof);
-const YoimiyaProofPtrPtr = ref.refType(YoimiyaProofPtr);
+// ─── FFI declarations ─────────────────────────────────────────────────────────
+// All opaque SDK types are represented as void* (koffi external pointers).
 
-// Load library
-const lib = ffi.Library(libPath, {
-  // SRS
-  'yoimiya_generate_test_srs': [YoimiyaSrsPtr, ['uint32']],
-  'yoimiya_free_srs': ['void', [YoimiyaSrsPtr]],
-  
-  // Proving
-  'yoimiya_prove_test': [YoimiyaProofPtr, ['uint32', ref.refType(ref.types.uint64), 'uint32', YoimiyaSrsPtr]],
-  'yoimiya_prove_r1cs': [YoimiyaProofPtr, ['string', ref.refType(ref.types.uint64), 'uint32', YoimiyaSrsPtr]],
-  'yoimiya_free_proof': ['void', [YoimiyaProofPtr]],
-  'yoimiya_proof_size_bytes': ['int32', [YoimiyaProofPtr]],
-  
-  // Verification
-  'yoimiya_verify': ['int32', [YoimiyaProofPtr, YoimiyaSrsPtr]],
-  
-  // Aggregation
-  'yoimiya_aggregate': [YoimiyaBatchProofPtr, [YoimiyaProofPtrPtr, 'uint32', YoimiyaSrsPtr]],
-  'yoimiya_free_batch_proof': ['void', [YoimiyaBatchProofPtr]],
-  'yoimiya_verify_batch': ['int32', [YoimiyaBatchProofPtr, YoimiyaSrsPtr]],
-  'yoimiya_batch_to_calldata': ['int32', [YoimiyaBatchProofPtr, ref.refType(ref.types.uint8), 'uint32']],
-});
+const yoimiya_generate_test_srs  = lib.func('void* yoimiya_generate_test_srs(uint32 max_degree)');
+const yoimiya_free_srs            = lib.func('void  yoimiya_free_srs(void* srs)');
 
-// Wrapper classes
+const yoimiya_prove_test          = lib.func('void* yoimiya_prove_test(uint32 num_constraints, uint64* witness, uint32 witness_len, void* srs)');
+const yoimiya_prove_r1cs          = lib.func('void* yoimiya_prove_r1cs(const char* path, uint64* witness, uint32 witness_len, void* srs)');
+const yoimiya_prove_acir          = lib.func('void* yoimiya_prove_acir(const char* path, uint64* witness, uint32 witness_len, void* srs)');
+const yoimiya_prove_plonkish      = lib.func('void* yoimiya_prove_plonkish(const char* path, uint64* witness, uint32 witness_len, void* srs)');
+const yoimiya_free_proof          = lib.func('void  yoimiya_free_proof(void* proof)');
+const yoimiya_proof_size_bytes    = lib.func('int32 yoimiya_proof_size_bytes(void* proof)');
+
+// Both Proof and BatchProof are verified through the same yoimiya_verify entry point
+const yoimiya_verify              = lib.func('int32 yoimiya_verify(void* proof, void* srs)');
+
+const yoimiya_aggregate           = lib.func('void* yoimiya_aggregate(void** proofs, uint32 count, void* srs)');
+const yoimiya_free_batch_proof    = lib.func('void  yoimiya_free_batch_proof(void* batch)');
+const yoimiya_batch_to_calldata   = lib.func('int32 yoimiya_batch_to_calldata(void* batch, uint8* out, uint32 out_len)');
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function toWitnessBuffer(witness) {
+  const buf = new BigUint64Array(witness.length);
+  for (let i = 0; i < witness.length; i++) buf[i] = BigInt(witness[i]);
+  return buf;
+}
+
+function toPtrArray(handles) {
+  // Build a BigUint64Array of pointer addresses for void**
+  const addrs = new BigUint64Array(handles.length);
+  for (let i = 0; i < handles.length; i++) {
+    addrs[i] = koffi.address(handles[i]);
+  }
+  return addrs;
+}
+
+// ─── Wrapper classes ──────────────────────────────────────────────────────────
+
 class Srs {
   constructor(maxDegree) {
-    this.handle = lib.yoimiya_generate_test_srs(maxDegree);
-    if (this.handle.isNull()) {
-      throw new Error('Failed to generate SRS');
-    }
+    this.handle = yoimiya_generate_test_srs(maxDegree);
+    if (!this.handle) throw new Error('Failed to generate SRS');
   }
-  
   destroy() {
-    if (this.handle && !this.handle.isNull()) {
-      lib.yoimiya_free_srs(this.handle);
-    }
+    if (this.handle) { yoimiya_free_srs(this.handle); this.handle = null; }
   }
 }
 
 class Proof {
-  constructor(handle) {
-    this.handle = handle;
-  }
-  
+  constructor(handle) { this.handle = handle; }
+
   verify(srs) {
-    const result = lib.yoimiya_verify(this.handle, srs.handle);
-    if (result === -1) {
-      throw new Error('Verification error');
-    }
-    return result === 1;
+    const r = yoimiya_verify(this.handle, srs.handle);
+    if (r === -1) throw new Error('Verification error');
+    return r === 1;
   }
 
   byteSize() {
-    const size = lib.yoimiya_proof_size_bytes(this.handle);
-    if (size < 0) {
-      throw new Error('Failed to get proof byte size');
-    }
-    return size;
+    const s = yoimiya_proof_size_bytes(this.handle);
+    if (s < 0) throw new Error('Failed to get proof byte size');
+    return s;
   }
-  
+
   destroy() {
-    if (this.handle && !this.handle.isNull()) {
-      lib.yoimiya_free_proof(this.handle);
-    }
+    if (this.handle) { yoimiya_free_proof(this.handle); this.handle = null; }
   }
 }
 
 class BatchProof {
-  constructor(handle) {
-    this.handle = handle;
-  }
-  
+  constructor(handle) { this.handle = handle; }
+
   verify(srs) {
-    const result = lib.yoimiya_verify_batch(this.handle, srs.handle);
-    if (result === -1) {
-      throw new Error('Batch verification error');
-    }
-    return result === 1;
+    // BatchProof is verified through the same yoimiya_verify entry point as Proof
+    const r = yoimiya_verify(this.handle, srs.handle);
+    if (r === -1) throw new Error('Batch verification error');
+    return r === 1;
   }
 
   toCalldata() {
-    const buffer = Buffer.alloc(275);
-    const written = lib.yoimiya_batch_to_calldata(this.handle, buffer, 275);
-    if (written < 0) {
-      throw new Error('Failed to serialize batch proof');
-    }
-    return buffer.subarray(0, written);
+    const out = Buffer.alloc(275);
+    const written = yoimiya_batch_to_calldata(this.handle, out, 275);
+    if (written < 0) throw new Error('Failed to serialize batch proof');
+    return out.subarray(0, written);
   }
-  
+
   destroy() {
-    if (this.handle && !this.handle.isNull()) {
-      lib.yoimiya_free_batch_proof(this.handle);
-    }
+    if (this.handle) { yoimiya_free_batch_proof(this.handle); this.handle = null; }
   }
 }
 
-// Public API
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 function generateTestSrs(maxDegree) {
   return new Srs(maxDegree);
 }
 
 function proveTest(numConstraints, witness, srs) {
-  if (witness.length < (numConstraints + 1)) {
-    throw new Error(`witness too short: got ${witness.length}, need at least ${numConstraints + 1} for numConstraints=${numConstraints}`);
+  if (witness.length < numConstraints + 1) {
+    throw new Error(
+      `witness too short: got ${witness.length}, need at least ${numConstraints + 1}`
+    );
   }
-
-  const witnessArray = Buffer.allocUnsafe(witness.length * 8);
-  for (let i = 0; i < witness.length; i++) {
-    witnessArray.writeBigUInt64LE(BigInt(witness[i]), i * 8);
-  }
-  
-  const proofHandle = lib.yoimiya_prove_test(
-    numConstraints,
-    ref.cast(witnessArray, ref.refType(ref.types.uint64)),
-    witness.length,
-    srs.handle
+  const handle = yoimiya_prove_test(
+    numConstraints, toWitnessBuffer(witness), witness.length, srs.handle
   );
-  
-  if (proofHandle.isNull()) {
-    throw new Error('Failed to prove');
-  }
-  
-  return new Proof(proofHandle);
+  if (!handle) throw new Error('Failed to prove');
+  return new Proof(handle);
 }
 
 function proveR1cs(r1csPath, witness, srs) {
-  const witnessArray = Buffer.allocUnsafe(witness.length * 8);
-  for (let i = 0; i < witness.length; i++) {
-    witnessArray.writeBigUInt64LE(BigInt(witness[i]), i * 8);
-  }
-  
-  const proofHandle = lib.yoimiya_prove_r1cs(
-    r1csPath,
-    ref.cast(witnessArray, ref.refType(ref.types.uint64)),
-    witness.length,
-    srs.handle
+  const handle = yoimiya_prove_r1cs(
+    r1csPath, toWitnessBuffer(witness), witness.length, srs.handle
   );
-  
-  if (proofHandle.isNull()) {
-    throw new Error('Failed to prove R1CS');
-  }
-  
-  return new Proof(proofHandle);
+  if (!handle) throw new Error('Failed to prove R1CS');
+  return new Proof(handle);
 }
 
 function aggregateProofs(proofs, srs) {
-  if (proofs.length === 0) {
-    throw new Error('No proofs to aggregate');
-  }
-  
-  const proofHandles = Buffer.allocUnsafe(proofs.length * ref.sizeof(YoimiyaProofPtr));
-  for (let i = 0; i < proofs.length; i++) {
-    proofHandles.writePointer(proofs[i].handle, i * ref.sizeof(YoimiyaProofPtr));
-  }
-  
-  const batchHandle = lib.yoimiya_aggregate(
-    ref.cast(proofHandles, YoimiyaProofPtrPtr),
-    proofs.length,
-    srs.handle
-  );
-  
-  if (batchHandle.isNull()) {
-    throw new Error('Failed to aggregate proofs');
-  }
-  
-  return new BatchProof(batchHandle);
+  if (proofs.length === 0) throw new Error('No proofs to aggregate');
+  const ptrArr = toPtrArray(proofs.map(p => p.handle));
+  const handle = yoimiya_aggregate(ptrArr, proofs.length, srs.handle);
+  if (!handle) throw new Error('Failed to aggregate proofs');
+  return new BatchProof(handle);
 }
 
-module.exports = {
-  Srs,
-  Proof,
-  BatchProof,
-  generateTestSrs,
-  proveTest,
-  proveR1cs,
-  aggregateProofs,
-};
+module.exports = { Srs, Proof, BatchProof, generateTestSrs, proveTest, proveR1cs, aggregateProofs };
