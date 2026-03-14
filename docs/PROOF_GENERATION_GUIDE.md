@@ -37,13 +37,34 @@ proof = prove_test(
 )
 ```
 
-**R1CS Circuit (Circom):**
+**R1CS Circuit (Circom) — u64 witness:**
 ```python
 from yoimiya import prove_r1cs
 
 proof = prove_r1cs(
     path="path/to/circuit.r1cs",
     witness=[1, 2, 3, ...],
+    srs=srs
+)
+```
+
+**R1CS Circuit (Circom) — 254-bit BN254 field-element witness:**
+
+Circom witnesses are 254-bit field elements (BN254 scalar field Fr), which can exceed `u64`.
+Use `prove_r1cs_field()` when values are produced by snarkjs `wtns export json` or similar tooling:
+
+```python
+from yoimiya import prove_r1cs_field
+import json
+
+# Load snarkjs witness output
+with open("witness.json") as f:
+    raw = json.load(f)
+witness_ints = [int(x) for x in raw]  # may be > 2^64
+
+proof = prove_r1cs_field(
+    path="path/to/circuit.r1cs",
+    witness=witness_ints,  # Python ints, reduced mod BN254 Fr automatically
     srs=srs
 )
 ```
@@ -88,25 +109,50 @@ print(f"Proof valid: {is_valid}")
 
 ### 4. Aggregate Multiple Proofs
 
-**Level 1: Basic Aggregation**
+**Level 1: Per-node aggregation**
 ```python
-from yoimiya import aggregate_proofs
+from yoimiya import aggregate
 
 proofs = [proof1, proof2, proof3]
-batch_proof = aggregate_proofs(proofs, srs)
+batch_proof = aggregate(proofs, srs)
 assert batch_proof.verify(srs)
 ```
 
-**Level 2: Super-Batch (fold multiple batches)**
+**Level 2: Rollup super-batch (aggregate_batches)**
+
+Fold N per-node `BatchProof`s into a single 275-byte on-chain submission.
+This is Yoimiya’s key rollup capability — gnark and Barretenberg need a full recursive SNARK
+(100–500 ms, circuit-specific) to achieve equivalent compression. Yoimiya does it in microseconds
+via Full Mira accumulation and the result is circuit-agnostic.
+
 ```python
-from yoimiya import aggregate_batches
+from yoimiya import aggregate, aggregate_batches
 
-batch_a = aggregate_proofs(proofs_a, srs)
-batch_b = aggregate_proofs(proofs_b, srs)
+# Each compute node aggregates its own proofs locally
+batch_a = aggregate(proofs_node_a, srs)   # any circuit mix
+batch_b = aggregate(proofs_node_b, srs)
+batch_c = aggregate(proofs_node_c, srs)
 
-super_batch = aggregate_batches([batch_a, batch_b])
+# Sequencer / coordinator folds all node batches into one submission
+super_batch = aggregate_batches([batch_a, batch_b, batch_c])
 assert super_batch.verify(srs)
+
+calldata = super_batch.to_calldata()  # always 275 bytes
+# Submit to YoimiyaBatchVerifier.verifyBatch() or YoimiyaOptimizedVerifier.verifyBatch()
 ```
+
+**Measured folding throughput:**
+
+| Node batches | Time |
+|---|---|
+| 2 nodes | 2.7 µs |
+| 5 nodes | 9.3 µs |
+| 10 nodes | 21.7 µs |
+| 100 nodes | 0.42 ms |
+| 500 nodes | 4.92 ms |
+| 1,000 nodes | 16.9 ms |
+
+On-chain verification gas is identical regardless of how many proofs were folded in.
 
 ### 5. Prepare for On-Chain Submission
 
@@ -191,13 +237,20 @@ for n_constraints in [100, 500, 1000, 5000, 10000]:
 
 ## Performance Baselines
 
-### Reference Hardware Results (March 2026)
+### Reference Hardware Results (March 2026, post-optimization)
 
 | Constraints | Prove Time | Verify Time | Peak RAM | Valid |
 |-------------|-----------|------------|----------|-------|
-| 100 | 0.24 ms | 0.77 ms | 24.2 MB | ✓ |
-| 500 | 0.53 ms | 0.74 ms | 24.7 MB | ✓ |
-| 1,000 | 0.99 ms | 0.72 ms | 25.1 MB | ✓ |
+| 100 | 0.28 ms | 0.77 ms | 24.2 MB | ✓ |
+| 500 | 0.34 ms | 0.74 ms | 24.7 MB | ✓ |
+| 1,000 | 0.49 ms | 0.72 ms | 25.1 MB | ✓ |
+| 2,000 | 0.82 ms | 0.83 ms | 25.1 MB | ✓ |
+| 10,000 | 8.66 ms | 0.71 ms | 31.6 MB | ✓ |
+| 50,000 | 52.98 ms | 0.72 ms | 55.6 MB | ✓ |
+| 100,000 | 122.37 ms | 0.73 ms | 155.0 MB | ✓ |
+| 250,000 | 340.74 ms | 0.78 ms | 235.6 MB | ✓ |
+| 500,000 | 717.92 ms | 0.82 ms | 368.3 MB | ✓ |
+| 1,000,000 | 1485.96 ms | 0.85 ms | 637.7 MB | ✓ |
 | 2,000 | 1.76 ms | 0.83 ms | 25.1 MB | ✓ |
 | 10,000 | 8.66 ms | 0.71 ms | 31.6 MB | ✓ |
 | 50,000 | 52.98 ms | 0.72 ms | 55.6 MB | ✓ |

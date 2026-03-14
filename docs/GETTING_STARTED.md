@@ -23,12 +23,14 @@ The Yoimiya SDK is distributed as **pre-compiled binaries only**. There's no sou
 
 **Current Status:**
 - ✅ SDK structure, bindings, tests, documentation ready
-- ✅ All pre-compiled binaries published and tested
+- ✅ All pre-compiled binaries published and tested (latest DLL includes March 2026 perf optimizations)
 - ✅ All 6 platforms available (Windows, Linux, macOS Intel/Apple Silicon, Android, iOS)
 - ✅ 13 total release assets including headers, Python bindings, and test circuits
+- ✅ Native Circom R1CS support with `prove_r1cs_field()` for 254-bit field-element witnesses
+- ✅ Two-level aggregation: `aggregate_batches()` folds 1,000 proofs → 275 bytes in 16.9 ms
 
 **Version:** v0.1.0 (March 2026)
-**Test Status:** All 20 integration tests passing
+**Test Status:** All 20 integration tests passing + real-circuit tests (Circom range/MiMC/Poseidon, ACIR, Plonkish)
 
 ---
 

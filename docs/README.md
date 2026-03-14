@@ -213,7 +213,8 @@ int main() {
 |----------|-------------|
 | `prove_test(num_constraints, witness, srs)` | Prove test circuit |
 | `prove_test_precompiled(num_constraints, witness)` | Prove test circuit with bundled SRS |
-| `prove_r1cs(r1cs_path, witness, srs)` | Prove R1CS circuit (Circom) |
+| `prove_r1cs(r1cs_path, witness, srs)` | Prove R1CS circuit (Circom) with u64 witness |
+| `prove_r1cs_field(r1cs_path, witness, srs)` | Prove R1CS circuit with 254-bit BN254 field-element witness (Circom native) |
 | `prove_acir(acir_path, witness, srs)` | Prove ACIR circuit (Noir) |
 | `prove_plonkish(plonkish_path, witness, srs)` | Prove Plonkish circuit (Halo2) |
 | `free_proof(proof)` | Free proof resources |
@@ -278,20 +279,28 @@ cargo build --release
 
 ## Performance
 
-Benchmark results (running on reference hardware):
+Benchmark results (Windows x86_64 reference hardware, March 2026):
 
 **Proving (ms)**
-- 100 constraints: 0.08 ms
-- 500 constraints: 0.20 ms
-- 1000 constraints: 0.33 ms
-- 2000 constraints: 0.63 ms
+- 100 constraints: 0.28 ms
+- 500 constraints: 0.34 ms
+- 1000 constraints: 0.49 ms
+- 2000 constraints: 0.82 ms
 
 **Verification**
-- 1000 constraint proof: 0.59 ms
+- 1000 constraint proof: ~0.59 ms (constant regardless of constraint count)
 
 **Aggregation**
-- 2 proofs: 0.0026 ms
-- 5 proofs: 0.0095 ms
+- 2 proofs: 2.7 µs
+- 5 proofs: 9.3 µs
+- 10 proofs: 21.7 µs
+
+**Rollup-scale super-batch (aggregate_batches)**
+- 100 node batches → 1 on-chain submission: 0.42 ms
+- 500 node batches → 1 on-chain submission: 4.92 ms
+- 1,000 node batches → 1 on-chain submission: 16.9 ms
+
+Note: super-batch produces the same 275-byte calldata as a single batch — on-chain gas does not change with batch size.
 
 ## On-Chain Verification
 

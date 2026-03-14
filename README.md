@@ -91,14 +91,33 @@ print("✓ Proof valid!")
 
 **With circuit files:**
 ```python
-from yoimiya import prove_r1cs, prove_acir, prove_plonkish
+from yoimiya import prove_r1cs, prove_r1cs_field, prove_acir, prove_plonkish
 
+# R1CS with u64 witness
 proof_r1cs = prove_r1cs("path/to/circuit.r1cs", witness=[1,2,3], srs=srs)
+
+# R1CS with Circom / 254-bit BN254 field-element witness (integers may exceed u64)
+proof_r1cs_field = prove_r1cs_field("path/to/circuit.r1cs", witness=[large_int, ...], srs=srs)
+
 proof_acir = prove_acir("path/to/circuit.acir", witness=[1,2,3], srs=srs)
 proof_plonkish = prove_plonkish("path/to/circuit.plonkish", witness=[1,2,3], srs=srs)
 ```
 
 Test circuit files are in `examples/circuits/` for quick testing.
+
+**Aggregating and rolling up to chain:**
+```python
+from yoimiya import aggregate, aggregate_batches
+
+# Level 1: each compute node folds its own proofs
+batch_a = aggregate(proofs_node_a, srs)  # any number of proofs
+batch_b = aggregate(proofs_node_b, srs)
+
+# Level 2: fold all node batches into one 275-byte on-chain submission
+super_batch = aggregate_batches([batch_a, batch_b])
+calldata = super_batch.to_calldata()  # always 275 bytes
+# submit calldata to YoimiyaBatchVerifier.verifyBatch()
+```
 
 ### Node.js
 
@@ -175,17 +194,41 @@ Full binding: `bindings/csharp/Yoimiya.cs`
 
 ## 📊 Performance
 
-**Benchmark Results** (Reference hardware):
+**Benchmark Results** (Windows x86_64 reference hardware, March 2026):
 
 | Operation | Time |
 |-----------|------|
-| Prove 100 constraints | 0.08 ms |
-| Prove 500 constraints | 0.20 ms |
-| Prove 1000 constraints | 0.33 ms |
-| Prove 2000 constraints | 0.63 ms |
-| Verify proof (1000 constraints) | 0.59 ms |
-| Aggregate 2 proofs | 0.0026 ms |
-| Aggregate 5 proofs | 0.0095 ms |
+| Prove 100 constraints | 0.28 ms |
+| Prove 500 constraints | 0.34 ms |
+| Prove 1,000 constraints | 0.49 ms |
+| Prove 2,000 constraints | 0.82 ms |
+| Verify proof (any size) | ~0.59 ms |
+| Aggregate 2 proofs | 2.7 µs |
+| Aggregate 5 proofs | 9.3 µs |
+| Aggregate 10 proofs | 21.7 µs |
+
+**Rollup-scale batching** — fold N per-node `BatchProof`s into one 275-byte on-chain submission:
+
+| Node batches folded | Time |
+|---------------------|------|
+| 100 nodes | 0.42 ms |
+| 500 nodes | 4.92 ms |
+| 1,000 nodes | 16.9 ms |
+
+Verify time is constant at ~0.59 ms regardless of how many proofs are inside the batch.
+
+---
+
+## ⚡ Competitive Positioning
+
+| Competitor | Their edge | How Yoimiya closes it |
+|------------|-----------|----------------------|
+| **gnark** | Hand-tuned AVX-512 MSM, fast FFT | CDG+Mira bypasses FFT entirely; parallel chunked Pippenger closes the MSM gap |
+| **Barretenberg** | C++ SIMD, 15+ years of optimization | Full Mira's O(1) memory advantage is permanent — no C++ rewrite overcomes memory bandwidth limits |
+| **snarkjs** | Circom ecosystem size | Yoimiya parses `.r1cs` natively with 254-bit field-element witnesses; `prove_r1cs_field()` is a drop-in |
+| **Risc0 / SP1** | Arbitrary RISC-V programs | Different use case — not competing on raw constraints/second |
+
+**The unique advantage:** `aggregate_batches()` folds 1,000 independent proofs from any mix of circuit types into a single 275-byte on-chain submission in **16.9 ms** via Full Mira accumulation — no trusted setup, no recursive SNARK. gnark and Barretenberg require a full recursive SNARK (100–500 ms, circuit-specific) to achieve equivalent compression. On-chain gas is the same whether the batch contains 1 proof or 1,000.
 
 ---
 

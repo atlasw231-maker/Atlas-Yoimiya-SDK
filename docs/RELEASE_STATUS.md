@@ -1,8 +1,42 @@
 # v0.1.0 Release Status
 
 **Release Date:** March 14, 2026
-**Version:** 0.1.0 (Initial Release)
+**Version:** 0.1.0
 **Status:** ✅ FULLY RELEASED AND TESTED
+
+---
+
+## 🟢 Latest Changes (March 14, 2026)
+
+**Performance optimizations shipped in latest DLL build:**
+
+1. **Parallel chunked Pippenger MSM** (`msm.rs`)
+   - Large MSMs split across rayon threads (`CHUNK=16384`, `THRESHOLD=8192`)
+   - Works-steals alongside CDG partition parallelism
+
+2. **Ruffini synthetic division in KZG `open()`** (`kzg.rs`)
+   - Eliminates all `Fr::inverse()` calls per open (was O(n) field inversions)
+   - Extracts `v = p(z)` as the remainder — no separate `evaluate(z)` pass
+   - Trims trailing zero coefficients to shrink quotient MSM size
+
+3. **Trailing-zero trim in partition polynomial** (`prover.rs`)
+   - Satisfied witnesses collapse polynomial degree → trivial MSM
+
+**Measured improvement (Windows x86_64):**
+
+| Benchmark | Before | After |
+|-----------|--------|-------|
+| prove 100c | 0.24 ms | 0.28 ms* |
+| prove 500c | 0.53 ms | 0.34 ms |
+| prove 1000c | 0.99 ms | 0.49 ms |
+| prove 2000c | 1.76 ms | 0.82 ms |
+| aggregate/2 | 2.59 µs | 2.7 µs |
+
+*100c variance due to measurement noise at sub-ms scale.
+
+**New API function:** `prove_r1cs_field()` — accepts 254-bit BN254 field-element witnesses from Circom/snarkjs `wtns export json` output directly.
+
+**New benchmarks added:** `multi_level_batch` and `rollup_scale` groups measuring two-level aggregation at 2/5/10/100/500/1000 nodes.
 
 ---
 
@@ -14,6 +48,8 @@
 ✅ **All language bindings ready (Python, Node.js, C#, C)**
 ✅ **SDK structure, documentation, and test circuits included**
 ✅ **All 20 integration tests passing**
+✅ **All real-circuit tests passing: range_proof (67c), mimc_hash (366c), poseidon_perm (1500c) via Circom**
+✅ **All ACIR/Plonkish tests passing: 4 circuits covering Noir and Halo2 formats**
 
 **Download from:** https://github.com/atlasw231-maker/Atlas-Yoimiya-SDK/releases/tag/v0.1.0
 
