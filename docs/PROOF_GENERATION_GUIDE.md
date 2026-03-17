@@ -171,6 +171,27 @@ blobs = multi_batch_calldata([batch1, batch2, batch3])
 # Gas savings: ~22k/batch instead of ~64k/batch
 ```
 
+**TEE-attested submission (optional):**
+```python
+# Get the proof hash — send this to the TEE enclave for signing
+hash_ = batch_proof.proof_hash()  # sha256(275-byte blob)
+# TEE signs hash_ with sealed P-256 key → (r, s)
+# on-chain: verifyBatchWithAttestation(calldata, r, s)  ← ~62k gas on L2
+```
+
+### On-Chain Gas Cost Reference
+
+| Chain | Function | Gas | ~USD |
+|-------|----------|-----|------|
+| **L2** (Base/OP) | `pinTeeKey()` — once | ~30,000 | < $0.001 |
+| **L2** (Base/OP) | `verifyBatch(blob)` | ~58,000 | < $0.001 |
+| **L2** (Base/OP) | `verifyBatchWithAttestation(blob,r,s)` | ~62,000 | < $0.001 |
+| **L2** (Base/OP) | `verifyMultiBatch(blobs[])` | ~22k/batch | < $0.001 |
+| **L1** Ethereum | `verifyBatch(blob)` | ~58,000 | ~$1.45 |
+| **L1** Ethereum | `verifyBatchWithAttestation(blob,r,s)` | ~330,000* | ~$8.25 |
+
+\* Solidity P-256 fallback on L1 until EIP-7212. Use L2 for sub-cent costs.
+
 ---
 
 ## Understanding Constraints

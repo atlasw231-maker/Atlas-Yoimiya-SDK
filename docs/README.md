@@ -227,14 +227,39 @@ int main() {
 | `verify(proof, srs)` | Verify single proof (off-chain) |
 | `verify_precompiled(proof)` | Verify with auto-selected bundled SRS |
 
-#### Aggregation
+#### Aggregation & TEE
 
 | Function | Description |
 |----------|-------------|
 | `aggregate(proofs[], count, srs)` | Aggregate multiple proofs into batch |
 | `aggregate_batches(batches[], count)` | Fold N batches into a super-batch |
 | `multi_batch_calldata(batches[], count)` | Serialize N batches for `verifyMultiBatch()` |
+| `batch_to_calldata(batch, buf, len)` | Serialize batch → 275-byte blob |
+| `batch_proof_hash(batch, out)` | SHA-256 of blob — send to TEE for signing |
 | `free_batch_proof(batch_proof)` | Free batch proof resources |
+
+#### TEE Attestation (Optional)
+
+Proving runs on the server. Only the 32-byte proof hash enters the TEE for signing.
+
+```c
+// 1. Prove and aggregate on server (full speed)
+YoimiyaBatchProof* batch = yoimiya_aggregate(proofs, 3, srs);
+
+// 2. Get hash — send to TEE, receive (r, s)
+uint8_t blob[275], hash[32];
+yoimiya_batch_to_calldata(batch, blob, 275);
+yoimiya_batch_proof_hash(batch, hash);
+// TEE signs hash → r[32], s[32]
+
+// 3. Submit: verifyBatchWithAttestation(blob, r, s) — ~62k gas on L2
+```
+
+**One-time key pinning (owner, ~30k gas):**
+```solidity
+verifier.pinTeeKey(teeKeyX, teeKeyY);
+```
+Key is immutable after pinning. `verifyBatch()` continues to work without TEE.
 
 #### Hardware Detection
 
@@ -306,16 +331,42 @@ Note: super-batch produces the same 275-byte calldata as a single batch — on-c
 
 Two Solidity verifier contracts are provided:
 
-| Contract | Gas (single) | Gas (multi-batch) | Use case |
-|----------|-------------|-------------------|----------|
-| `YoimiyaBatchVerifier.sol` | ~95,000 | — | Simple integration |
-| `YoimiyaOptimizedVerifier.sol` | ~64,000 | ~22k/batch | Production |
+| Contract | Gas (single) | Gas (multi-batch) | TEE-attested | Use case |
+|----------|-------------|-------------------|--------------|----------|
+| `YoimiyaBatchVerifier.sol` | ~58,000 | — | ~62,000 | Simple + TEE |
+| `YoimiyaOptimizedVerifier.sol` | ~64,000 | ~22k/batch | — | High-throughput |
 
-`YoimiyaOptimizedVerifier.sol` supports:
-- `verifyBatch(bytes)` — Single batch (~64k gas)
-- `verifyOnly(bytes)` — View-only verification (~34k gas)
-- `verifyMultiBatch(bytes[])` — N batches, 1 pairing check (~22k/batch)
-- `verifyMultiBatchView(bytes[])` — View-only multi-batch (~20k/batch)
+### Gas Cost Reference (L2: Base / OP Mainnet / Polygon zkEVM)
+
+**YoimiyaBatchVerifier.sol**
+
+| Function | Gas | ~USD (0.005 gwei, $2,500 ETH) | ~USD (L1, 10 gwei) |
+|----------|-----|-------------------------------|--------------------|
+| `pinTeeKey(x, y)` — one time | ~30,000 | < $0.001 | ~$0.75 |
+| `verifyBatch(blob)` | ~58,000 | < $0.001 | ~$1.45 |
+| `verifyBatchWithAttestation(blob, r, s)` | ~62,000 | < $0.001 | ~$8.25* |
+
+\* L1 uses Solidity P-256 library until EIP-7212 is finalized (~272k extra gas).
+On L2 with RIP-7212 (Base, OP Mainnet, Polygon zkEVM, zkSync, Scroll), P-256
+costs only ~3,450 gas. **Deploy on L2 for sub-cent economics.**
+
+**YoimiyaOptimizedVerifier.sol**
+
+| Function | Gas | ~USD on L2 | Description |
+|----------|-----|------------|-------------|
+| `verifyBatch(bytes)` | ~64,000 | < $0.001 | Single batch, emit event |
+| `verifyOnly(bytes)` | ~34,000 | < $0.001 | View-only, no state write |
+| `verifyMultiBatch(bytes[])` | ~22k/batch | < $0.001/batch | N batches, 1 pairing check |
+| `verifyMultiBatchView(bytes[])` | ~20k/batch | < $0.001/batch | View-only multi-batch |
+
+### BN254 Precompile Breakdown
+
+| Precompile | Address | Gas | Usage |
+|------------|---------|-----|-------|
+| `ecAdd` | 0x06 | ~150 | 2× per verify |
+| `ecMul` | 0x07 | ~6,000 | 2× per verify |
+| `ecPairing` | 0x08 | ~45,000 | 1× per verify |
+| P-256 verify | 0x0100 | ~3,450 | 1× (TEE path, RIP-7212 chains) |
 
 ## Test Circuit Files
 
@@ -355,3 +406,4 @@ Contributions welcome! Please see CONTRIBUTING.md
 - [Solidity Verifiers](../contracts/) — `YoimiyaBatchVerifier.sol` and `YoimiyaOptimizedVerifier.sol`
 - [Repository](https://github.com/atlasw231-maker/yoimiya-sdk)
 - [Atlas Protocol](https://atlasw231-maker.github.io)
+- [RIP-7212 — P-256 precompile](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7212.md) — live on Base, OP Mainnet, Polygon zkEVM, zkSync, Scroll

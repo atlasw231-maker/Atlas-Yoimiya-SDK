@@ -274,7 +274,54 @@ To modify the SDK source or rebuild binaries for a new platform:
 
 ---
 
-## 🔗 API Overview
+## � TEE Attestation Pinning (Optional)
+
+Proving always runs on the server with full CPU access — rayon threads, file I/O, no
+restrictions. The TEE only receives the 32-byte proof hash and signs it with a sealed
+P-256 key. This proves server identity without any impact on proving performance.
+
+```
+Server (no TEE restrictions — full CPU, rayon, file I/O):
+  Yoimiya prover → 275-byte blob → sha256(blob) → TEE enclave
+
+TEE enclave (Intel SGX / AMD SEV-SNP / AWS Nitro):
+  receives 32-byte hash → signs with sealed P-256 key → returns (R, S)
+
+On-chain (~62k gas flat, forever):
+  verifyBatchWithAttestation(blob, R, S)
+  ├── KZG pairing check    ~57,300 gas
+  └── P-256 precompile     ~3,450 gas  (RIP-7212 at 0x0100)
+```
+
+**Setup (one time):** Verify hardware attestation quote off-chain → extract
+P-256 pubkey → call `pinTeeKey(keyX, keyY)` (~30k gas, owner only). Key is
+immutable after pinning.
+
+**Python:**
+```python
+from yoimiya import aggregate
+
+batch = aggregate(proofs, srs)
+blob  = batch.to_calldata()    # 275-byte on-chain blob
+hash_ = batch.proof_hash()     # sha256(blob) — send to TEE for signing
+# TEE signs hash_ → (r, s)
+# on-chain: verifyBatchWithAttestation(blob, r, s)  ← ~62k gas
+```
+
+**Gas costs on L2 (Base / OP Mainnet):**
+
+| Call | Gas | ~USD |
+|------|-----|------|
+| `pinTeeKey(x, y)` — one time | ~30,000 | < $0.001 |
+| `verifyBatch(blob)` — no TEE | ~58,000 | < $0.001 |
+| `verifyBatchWithAttestation(blob, r, s)` | ~62,000 | < $0.001 |
+
+**TEE is fully optional.** Teams that don’t use a TEE simply call `verifyBatch()`
+and never call `pinTeeKey()`. Both paths coexist in the same contract.
+
+---
+
+## �🔗 API Overview
 
 ### Core Types
 
@@ -300,6 +347,8 @@ To modify the SDK source or rebuild binaries for a new platform:
 | `aggregate_proofs(proofs[], srs)` | Aggregate proofs into batch |
 | `aggregate_batches(batches[])` | Fold batches into super-batch |
 | `multi_batch_calldata(batches[])` | Serialize N batches for multi-batch verify |
+| `batch.to_calldata()` | Serialize batch to 275-byte on-chain blob |
+| `batch.proof_hash()` | SHA-256 of blob — message for TEE to sign |
 | `detect_hardware()` | Get CPU info and optimal parameters |
 
 ---
@@ -357,10 +406,20 @@ blobs = multi_batch_calldata([batch_a, batch_b])
 
 Two Solidity contracts are provided:
 
-| Contract | Gas (single) | Multi-batch |
-|----------|-------------|-------------|
-| `YoimiyaBatchVerifier.sol` | ~95,000 | — |
-| `YoimiyaOptimizedVerifier.sol` | ~64,000 | ~22k/batch |
+| Contract | Gas (single) | Multi-batch | TEE-attested | Use case |
+|----------|-------------|-------------|--------------|----------|
+| `YoimiyaBatchVerifier.sol` | ~58,000 | — | ~62,000 | Simple + TEE |
+| `YoimiyaOptimizedVerifier.sol` | ~64,000 | ~22k/batch | — | High-throughput |
+
+**L2 gas costs** (Base / OP Mainnet, 0.005 gwei, $2,500 ETH):
+
+| Function | Gas | ~USD |
+|----------|-----|------|
+| `pinTeeKey(x, y)` — one time | ~30,000 | < $0.001 |
+| `verifyBatch(blob)` | ~58,000 | < $0.001 |
+| `verifyBatchWithAttestation(blob, r, s)` | ~62,000 | < $0.001 |
+| `verifyMultiBatch(blobs[])` | ~22k/batch | < $0.001/batch |
+| `verifyOnly(blob)` | ~34,000 | < $0.001 |
 
 ---
 

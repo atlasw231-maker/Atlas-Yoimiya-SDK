@@ -28,6 +28,7 @@ The Yoimiya SDK is distributed as **pre-compiled binaries only**. There's no sou
 - ✅ 13 total release assets including headers, Python bindings, and test circuits
 - ✅ Native Circom R1CS support with `prove_r1cs_field()` for 254-bit field-element witnesses
 - ✅ Two-level aggregation: `aggregate_batches()` folds 1,000 proofs → 275 bytes in 16.9 ms
+- ✅ TEE attestation pinning: optional P-256 signing path for server identity binding (~62k gas on L2)
 
 **Version:** v0.1.0 (March 2026)
 **Test Status:** All 20 integration tests passing + real-circuit tests (Circom range/MiMC/Poseidon, ACIR, Plonkish)
