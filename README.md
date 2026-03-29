@@ -194,6 +194,24 @@ Full binding: `bindings/csharp/Yoimiya.cs`
 
 ## 📊 Performance
 
+**Running benchmarks and visualizing results:**
+
+```bash
+# Capture telemetry data
+python benchmark_telemetry.py --sizes 100 500 1000 2000 10000 > results.csv
+
+# Generate performance charts (requires matplotlib: pip install matplotlib)
+python visualize_benchmark.py results.csv --output-dir ./charts
+
+# Print summary table only (no chart files)
+python visualize_benchmark.py results.csv --no-plot
+
+# Pipe benchmark output directly into the visualizer
+python benchmark_telemetry.py | python visualize_benchmark.py -
+```
+
+Charts written to `./charts/`: `prove_time.png`, `verify_time.png`, `proof_size.png`, `peak_memory.png`, `summary.png`.
+
 **Benchmark Results** (Windows x86_64 reference hardware, March 2026):
 
 | Operation | Time |
