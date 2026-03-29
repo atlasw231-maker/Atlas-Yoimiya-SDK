@@ -19,3 +19,7 @@ benchmark_100_to_1m.csv
 
 # Local ad-hoc benchmark script
 test_1m_only.py
+
+# Python bytecode cache
+__pycache__/
+*.pyc
